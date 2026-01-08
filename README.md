@@ -125,3 +125,29 @@ The object is meant to feel present, inevitable, and quietly capable — somethi
 * **Form**: Pyramidal structure on a raised square base.
 * **Function**: Distributed RF visibility through correlated RSSI sensing
 * **Aesthetic**: Ominous, restrained, archetypal, intentional
+
+---
+
+## 8. Fabrication & Build Pipeline
+
+The physical enclosure is designed programmatically using **OpenSCAD**. This ensures that all dimensions, clearances, and tolerances can be adjusted parametrically and versioned as code.
+
+### Prerequisites
+*   **OpenSCAD**: Download and install from [openscad.org](https://openscad.org/).
+
+### Source Files
+*   Design files are located in the `design/` directory.
+*   The current version is `design/all-seeing-eye.1.2.scad` (8-inch base, fixed top geometry).
+*   Prior versions:
+    *   `1.1`: 8-inch base (geometry bug).
+    *   `1.0`: 4-inch base.
+
+### Generating 3D Printable Files (STL)
+To generate the STL files for printing:
+
+1.  Run the automated build script:
+    ```cmd
+    .\build.bat
+    ```
+2.  The script will automatically detect OpenSCAD and compile all versions found in the `design/` folder.
+3.  Output STL files will be placed in the `build/` directory.
