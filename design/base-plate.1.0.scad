@@ -19,13 +19,19 @@ magnet_load_depth = total_height - 1.0; // Hole depth from bottom, leaving 1mm b
 /* [Rendering] */
 $fn = 60;
 
-module main() {
+module base_plate_main() {
+    
+    // Fit tolerance
+    tol = 0.5; // mm gap total (0.25 per side)
+    
+    plate_w = base_width - 2*wall_thickness - tol;
+    
     difference() {
         // 1. Positive Volume
         union() {
-            // A. Base Plate
+            // A. Base Plate (Fits INSIDE the shell walls)
             translate([0, 0, plate_thickness/2])
-                cube([base_width, base_width, plate_thickness], center=true);
+                cube([plate_w, plate_w, plate_thickness], center=true);
             
             // B. Alignment Tabs (Corner Triangles)
             // They sit on top of the plate (starts at z = plate_thickness)
@@ -42,9 +48,9 @@ module main() {
 module alignment_tabs() {
     // Generate 4 corner triangles
     // They fit INSIDE the shell walls.
-    // Shell inner hole is (base_width - 2*wall_thickness).
-    
-    // We place them in the corners of the PLATE, but indented by wall_thickness.
+    // The plate is ALREADY inside the walls. 
+    // So the tabs are flush with the plate corners?
+    // Let's keep them aligned to the same coordinate system.
     
     offset_dist = base_width/2 - wall_thickness; // Corner of the inner void
     
@@ -104,8 +110,8 @@ module magnet_holes() {
     
     for(pos = positions) {
         translate([pos[0], pos[1], -0.1])
-            cylinder(h = hole_depth, d = magnet_diam);
+            cylinder(h = hole_depth + 0.1, d = magnet_diam); // +0.1 for clean cut
     }
 }
 
-main();
+base_plate_main();

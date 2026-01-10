@@ -36,7 +36,7 @@ module almond_shape(w, h) {
     }
 }
 
-module main() {
+module eye_symbol_main() {
     
     // 1. Base Plate (Sclera)
     color("white") 
@@ -71,16 +71,6 @@ module main() {
         // Inner Pupil
         circle(d=pupil_diameter * 0.4); 
     }
-    
-    /* 
-       Alternative "Heavy Lid" cut?
-       Sometimes "lidded" means the top of the iris is covered.
-       Uncomment below to subtract the top lid from the pupil if desired.
-    */
-    /*
-    translate([0, eye_height/2, 0])
-        cube([eye_width, eye_height*0.2, 10], center=true);
-    */
 }
 
-main();
+eye_symbol_main();
