@@ -224,9 +224,10 @@ The physical enclosure is designed programmatically using **OpenSCAD**. This ens
 ### Shopping List
 * Sparkly semi-transparent purple PLA filament ([$19.99](https://amzn.to/3Yy0ZLC))
 * I used an AD5M Pro 3D printer which is 10/10. Fully enclosed and filtered. 220x220x250mm build volume. Very easy to use. ([$379](https://amzn.to/4aUHjsQ))
-* ESP-32 3-pack with ([$17.99](https://amzn.to/3YyJqLl))
+* ESP-32 3-pack with IPX MHF1 connector ([$17.99](https://amzn.to/3YyJqLl))
 * CC1101 module 3-pack ([$22.99](https://amzn.to/4qEJl4S))
 * IPX MHF1 to SMA Cable 5-pack ([$8.29](https://amzn.to/3NbLDdm))
+* Heltec v3 Meshtastic Node (optional, any meshtastic node with IPX MHF1 connector will do) ([$21.99](https://amzn.to/49MXC9Y))
 * GY-NEO6MV2 GPS Module (optional) ([$9.99](https://amzn.to/3NpCHRz))
 * 2.4ghz wifi antenna 4-pack (optional, any wifi antenna with SMA connector will do) ([$8.69](https://amzn.to/4szIt3d))
 * 915mhz antenna 2-pack (optional, any 915mhz antenna with SMA connector will do) ([$9.99](https://amzn.to/3LGUaV7))
@@ -235,12 +236,28 @@ The physical enclosure is designed programmatically using **OpenSCAD**. This ens
 
 ### Source Files
 *   Design files are located in the `design/` directory.
-*   **Shell**: `design/all-seeing-eye.1.6.scad` (Magnetic Latch System).
+
+#### Core Files
+*   **Shell (Blank)**: `design/all-seeing-eye.1.6.scad` (Magnetic Latch System, Blank Face).
 *   **Base Plate**: `design/base-plate.1.0.scad` (Matching Magnetic Lid).
-*   **Symbol**: `design/eye-symbol.1.0.scad` (Separate print).
-*   **Combined Variant**: `design/combined-1.0.scad` (Shell + Eye pre-attached).
+*   **Eye Symbol**: `design/eye-symbol.1.0.scad` (Separate print).
+
+#### Combined Variants
+*   **Combined Shell**: `design/combined-1.1.scad` (Shell + Eye formed as one piece. **Includes transparency cutout** behind the eye for LED visibility).
+
+#### Visualization
 *   **Assembly**: `design/assembly.1.0.scad` (Visualization only).
-*   Prior versions are kept for historical reference.
+
+### Printing Strategies
+You can choose between two assembly methods:
+
+1.  **Combined Print (Recommended)**: 
+    *   Print `combined-1.1.stl` and `base-plate.1.0.stl`.
+    *   This provides a robust, single-piece shell with the eye symbol pre-integrated and optimized for transparency.
+2.  **Separate Parts**:
+    *   Print `all-seeing-eye.1.6.stl` (Blank Shell), `eye-symbol.1.0.stl`, and `base-plate.1.0.stl`.
+    *   Glue the eye symbol onto the front face manually.
+    *   *Note*: This method does not have the transparency cutout behind the eye, so the LED glow may be dimmer.
 
 ### Generating 3D Printable Files (STL)
 To generate the STL files for printing:
@@ -283,23 +300,23 @@ This section documents the iterative design process from initial concept to the 
     *   Reverted complex internals to validate form factor.
     *   8-inch base, 45-degree slope.
 
-*   **v1.0**: Initial Parametric Design.
-    *   Established the OpenSCAD codebase.
-    *   Defined the core "Base + Pyramid" geometry.
-    *   Initial size: 4-inch base.
-    
-*   **v1.1**: Scaling Up.
-    *   Increased base size to 8 inches to accommodate larger internal volume requirements.
-    
-*   **v1.2**: Geometry Fixes.
-    *   Identified and fixed a bug where the internal hollow void was cutting completely through the roof.
-    *   Adjusted the inner pyramid height to leave a solid 0.25" roof for the top SMA connector.
-
 *   **v1.3 - v1.4**: Internal Mounting Experiments (Deprecated).
     *   Analyzed ESP32-S3-WROOM-1-N16R8 dimensions via photos.
     *   Measured LED alignment offsets (-6mm X, +18mm Y) to center the LED on the pyramid face.
     *   Designed candidate internal brackets for "flush face" mounting.
     *   *Decision*: Complexity of supporting floating internal rails was high; reverted to clean shell (v1.5) to ensure printability first.
+
+*   **v1.2**: Geometry Fixes.
+    *   Identified and fixed a bug where the internal hollow void was cutting completely through the roof.
+    *   Adjusted the inner pyramid height to leave a solid 0.25" roof for the top SMA connector.
+
+*   **v1.1**: Scaling Up.
+    *   Increased base size to 8 inches to accommodate larger internal volume requirements.
+    
+*   **v1.0**: Initial Parametric Design.
+    *   Established the OpenSCAD codebase.
+    *   Defined the core "Base + Pyramid" geometry.
+    *   Initial size: 4-inch base.
 
 ### Hardware Research (ESP32-S3)
 *   **Device**: ESP32-S3-WROOM-1-N16R8 Dev Board.
