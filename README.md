@@ -1,4 +1,6 @@
 # All-Seeing-Eye Design Document
+![All-Seeing Eye Rendering](assets/images/rendering.jpg)
+
 A 3d printed structure to contain broad spectrum sub-ghz meshtastic VLBI elements
 
 
@@ -126,7 +128,7 @@ Lighting behavior is slow, restrained, and continuous, reinforcing the sense tha
 While the core functionality is provided by the ESP32 and CC1101, additional modules can establish the node as a precise reference point in the VLBI network.
 
 ### GPS Module
-*   **Component**: **GY-NEO6MV2 (u-blox NEO-6M)**
+*   **Component**: **[GY-NEO6MV2 (u-blox NEO-6M)](https://amzn.to/3NpCHRz)**
 *   **Purpose**: Provides accurate geolocation and precise time-synchronization for signal timestamping.
 *   **Precision**: +/- 2.5m.
 *   **Integration**: Can be mounted internally on the base plate or adhered to the inner wall.
@@ -219,11 +221,25 @@ The physical enclosure is designed programmatically using **OpenSCAD**. This ens
 ### Prerequisites
 *   **OpenSCAD**: Download and install from [openscad.org](https://openscad.org/).
 
+### Shopping List
+* Sparkly semi-transparent purple PLA filament ([$19.99](https://amzn.to/3Yy0ZLC))
+* I used an AD5M Pro 3D printer which is 10/10. Fully enclosed and filtered. 220x220x250mm build volume. Very easy to use. ([$379](https://amzn.to/4aUHjsQ))
+* ESP-32 3-pack with ([$17.99](https://amzn.to/3YyJqLl))
+* CC1101 module 3-pack ([$22.99](https://amzn.to/4qEJl4S))
+* IPX MHF1 to SMA Cable 5-pack ([$8.29](https://amzn.to/3NbLDdm))
+* GY-NEO6MV2 GPS Module (optional) ([$9.99](https://amzn.to/3NpCHRz))
+* 2.4ghz wifi antenna 4-pack (optional, any wifi antenna with SMA connector will do) ([$8.69](https://amzn.to/4szIt3d))
+* 915mhz antenna 2-pack (optional, any 915mhz antenna with SMA connector will do) ([$9.99](https://amzn.to/3LGUaV7))
+
+
+
 ### Source Files
 *   Design files are located in the `design/` directory.
 *   **Shell**: `design/all-seeing-eye.1.6.scad` (Magnetic Latch System).
 *   **Base Plate**: `design/base-plate.1.0.scad` (Matching Magnetic Lid).
 *   **Symbol**: `design/eye-symbol.1.0.scad` (Separate print).
+*   **Combined Variant**: `design/combined-1.0.scad` (Shell + Eye pre-attached).
+*   **Assembly**: `design/assembly.1.0.scad` (Visualization only).
 *   Prior versions are kept for historical reference.
 
 ### Generating 3D Printable Files (STL)
@@ -235,6 +251,15 @@ To generate the STL files for printing:
     ```
 2.  The script will automatically detect OpenSCAD and compile all versions found in the `design/` folder.
 3.  Output STL files will be placed in the `build/` directory.
+
+### Print Preview & Estimates
+![Print Preview](assets/images/print-preview.png)
+
+(Note: Estimates below are approximate place holders based on 15% infill and standard PETG settings).
+
+*   **Print Time**: 5 hours, 12 minutes
+*   **Material Usage**: ~200.24g
+*   **Material Cost**: ~$3.99 (at $19.99/kg)
 
 ---
 
@@ -249,6 +274,7 @@ This section documents the iterative design process from initial concept to the 
     1.  **Shell (v1.6)**: Added internal corner blocks with blind holes for 6x3mm magnets.
     2.  **Base Plate (v1.0)**: New bottom lid with alignment tabs and matching magnet recesses.
     3.  **Eye Symbol (v1.0)**: Separate "Vesica Piscis" style eye attachment.
+    4.  **Combined Variant (v1.0)**: Alternate shell model with the Eye Symbol already fused to the front face (single print).
 *   **Material**: Shell MUST be printed in **Semi-Transparent** material for checking internal status LEDs without opening.
 
 ### Development Milestones
