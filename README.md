@@ -37,23 +37,39 @@ For the initial prototype, the enclosure must meet the following precise physica
 
 ### 3.1 Base Geometry
 *   **Structure**: A hollow square prism.
-*   **Dimensions**: 4 inches x 4 inches (Outer footprint).
+*   **Dimensions**: 8 inches x 8 inches (Outer footprint) - *Updated from 4" in v1.1*.
 *   **Height**: 0.5 inches.
 *   **Wall Thickness**: 0.25 inches.
 *   **Notes**: This forms the foundation upon which the pyramid sits.
 
 ### 3.2 Pyramid Geometry
 *   **Structure**: A hollow 4-sided pyramid sitting directly atop the base.
+*   **Material Compatibility**: The shell must be printed in **Semi-Transparent** material (PETG/PLA) to allow internal LED diffuse lighting to be visible externally without physical apertures.
 *   **Slope**: Faces must be angled at 45 degrees.
 *   **Wall Thickness**: 0.25 inches.
-*   **Front Face**: Reserved for future illuminated "All-Seeing Eye" symbol (not present in prototype).
+*   **Front Face**: Blank (Eye Symbol is a separate attachment).
 *   **Top**: Truncated flat top.
-    *   The flat top must be large enough to accommodate a central SMA connector hole.
-    *   Ensure sufficient flat area for the connector nut (internal) and fittings (external).
+    *   The flat top accommodates a central SMA connector hole.
 
-### 3.3 Clearances
+### 3.3 Base Plate (Bottom Lid)
+*   **System**: A separate 0.25" thick plate that snaps into the bottom of the shell.
+*   **Alignment**: Includes four corner alignment tabs (triangles) that fit inside the shell walls.
+*   **Latching Mechanism**: Magnetic Latch System.
+    *   **Magnets**: Uses 8x 6x3mm round magnets (4 in shell, 4 in lid).
+    *   **Magnet Placement**: Magnets are installed in internal recesses (blind holes) so they never touch directly. There is a ~1mm plastic bridge separating them.
+    *   **Shell Side**: Corner blocks inside the base rim hold magnets facing down.
+    *   **Lid Side**: Alignment tabs hold magnets facing up.
+    *   **Superglue**: Magnets are secured in their recesses with superglue or epoxy.
+
+### 3.4 Clearances
 *   The entire assembly is hollow.
 *   Internal thickness of walls is consistent (0.25 inch).
+
+### 3.5 Eye Symbol (Attachment)
+*   **Design**: A separate visual artifact attached to the front face.
+*   **Style**: Minimalist "All-Seeing Eye" (Almond shape + Pupil).
+*   **Dimensions**: 3 inches wide x 1.75 inches tall.
+*   **Mounting**: Adhered to the front 45-degree face.
 
 ---
 
@@ -97,7 +113,7 @@ Lighting is used to convey **latent awareness**, not alerts or activity.
 
 ### Lighting Layers
 
-* **Eye Glow**: Very low-level internal glow behind the eye aperture
+* **Eye Glow**: Internal RGB LED (ESP32) diffuses through the **semi-transparent shell material**. No physical hole is required.
 * **Edge Leakage**: Subtle light escaping along seams or edges
 * **Base Halo (optional)**: Soft downward glow to create a floating artifact effect
 
@@ -105,7 +121,75 @@ Lighting behavior is slow, restrained, and continuous, reinforcing the sense tha
 
 ---
 
-## 6. Overall Intent
+## 6. Optional Hardware Components
+
+While the core functionality is provided by the ESP32 and CC1101, additional modules can establish the node as a precise reference point in the VLBI network.
+
+### GPS Module
+*   **Component**: **GY-NEO6MV2 (u-blox NEO-6M)**
+*   **Purpose**: Provides accurate geolocation and precise time-synchronization for signal timestamping.
+*   **Precision**: +/- 2.5m.
+*   **Integration**: Can be mounted internally on the base plate or adhered to the inner wall.
+
+---
+
+## 7. Geolocation Techniques
+
+This section details methods for determining the positions of dispersed nodes.
+
+### 7.1 Native Approach (No GPS)
+This method utilizes the core ESP32+CC1101 hardware to estimate location without dedicated GPS modules. It relies on a "Spring-Mass" or "Elastic Map" concept.
+
+**1. Relative Positioning (Multidimensional Scaling)**
+*   **Concept**: Every node broadcasts packets to every other node to measure pairwise RSSI (Signal Strength).
+*   **Processing**: These values are fed into a **Multidimensional Scaling (MDS)** algorithm. The algorithm treats RSSI values as "springs" (distances) and unfolds the graph to find the geometric shape that best satisfies the signal constraints.
+*   **Result**: A relative 2D map of where nodes are sitting relative to each other (e.g., "Node A is 5 meters left of Node B").
+*   **Accuracy**: ~3–10 meters relative precision.
+
+**2. Absolute Anchoring (WiFi Fingerprinting)**
+*   **Concept**: To pin this floating relative map to the real world, ESP32s scan for all nearby WiFi Access Point BSSIDs.
+*   **Processing**: This data is resolved via Geolocation APIs (e.g., Google/Mozilla) to approximate latitude/longitude.
+*   **Result**: Provides an absolute "anchor" for the cluster.
+*   **Accuracy**: ~15–30 meters.
+
+**Caveats**: 
+*   This approach is essentially an estimation.
+*   RSSI is easily distorted by obstacles (multipath fading), which can warp the calculated geometry.
+*   WiFi geolocation depends entirely on the density of known networks in the area.
+
+### 7.2 Precision Approach (GPS)
+The preferred alternative is installing the optional **GY-NEO6MV2 GPS Module** (see Section 6).
+*   **Accuracy**: +/- 2.5m (Absolute).
+*   **Reliability**: Independent of WiFi availability and unaffected by RF multipath distortion.
+
+### 7.3 Role of the Single RTL-SDR
+While a single RTL-SDR node cannot perform Time Difference of Arrival (TDOA) multilateration (which requires 3+ synchronized anchors), it plays a support role:
+*   **Calibration**: Use the SDR to monitor transmission power of the nodes, normalizing "hot" transmitters that would otherwise skew RSSI distance calculations.
+*   **Pseudo-Doppler (Advanced)**: With a custom antenna-switching add-on, the single SDR can perform Direction Finding to determine the Angle of Arrival (AoA), adding bearing lines to the location solution.
+
+---
+
+### 7.4 VLBI / TDOA Possibilities (Future Scope)
+While the current prototype focuses on RSSI, the project name "All-Seeing Eye" references **VLBI (Very Long Baseline Interferometry)** concepts.
+
+*   **TDOA Viability**: Time Difference of Arrival (TDOA) requires extremely precise nanosecond-level clock synchronization across nodes.
+    *   **ESP32 Limitations**: The standard ESP32 clock is not stable enough for fine-grained TDOA on its own.
+    *   **Non-Coherent Operation**: Since the nodes are not phase-coherent (they don't share a local oscillator), standard interferometry is impossible.
+*   **Large Baseline Approach**: If nodes are separated by significant distances (kilometers), the timing requirements relax slightly for macroscopic TDOA.
+    *   **GPS PPS**: Adding the **GPS Module (Section 6)** provides a **Pulse Per Second (PPS)** signal. This can discipline the local clocks to within microsecond accuracy.
+    *   **Feasibility**: With GPS-disciplined timestamps, TDOA could potentially resolve location to within ~300 meters (1 microsecond = ~300m light travel time). This allows for "City-Scale" triangulation of powerful signal sources, staying true to the VLBI inspiration despite the lack of phase coherence.
+
+### 7.5 Mesh-Assisted Localization (Opportunistic)
+If the node is operating within an active Meshtastic mesh, it can utilize traffic from *other* nodes to determine its own location.
+
+*   **Mechanism**: The node listens for position packets from nearby Meshtastic nodes that *do* have GPS fixes.
+*   **Calculation**: By measuring the RSSI of the incoming packet and extracting the GPS coordinates from the payload, the node treats the sender as a "Beacon" or "Anchor".
+*   **Trilateration**: With signals from 3+ distinct GPS-enabled peers, the node can estimate its position based on expected signal fade (Path Loss Models).
+*   **Single-Hop Constraint**: This technique relies on **direct (single-hop)** reception. Use of RSSI from relayed packets would result in calculating distance to the repeater, not the original sender, leading to gross errors. The system must verify the packet has not been hopped before using it for ranging.
+
+---
+
+## 8. Overall Intent
 
 The All-Seeing Eye Node is designed as:
 
@@ -119,7 +203,7 @@ The object is meant to feel present, inevitable, and quietly capable — somethi
 
 ---
 
-## 7. Locked Concepts
+## 9. Locked Concepts
 
 * **Names**: SDR Node, All-Seeing Eye Node, All-Seeing Eye View
 * **Form**: Pyramidal structure on a raised square base.
@@ -128,7 +212,7 @@ The object is meant to feel present, inevitable, and quietly capable — somethi
 
 ---
 
-## 8. Fabrication & Build Pipeline
+## 10. Fabrication & Build Pipeline
 
 The physical enclosure is designed programmatically using **OpenSCAD**. This ensures that all dimensions, clearances, and tolerances can be adjusted parametrically and versioned as code.
 
@@ -137,10 +221,10 @@ The physical enclosure is designed programmatically using **OpenSCAD**. This ens
 
 ### Source Files
 *   Design files are located in the `design/` directory.
-*   The current version is `design/all-seeing-eye.1.2.scad` (8-inch base, fixed top geometry).
-*   Prior versions:
-    *   `1.1`: 8-inch base (geometry bug).
-    *   `1.0`: 4-inch base.
+*   **Shell**: `design/all-seeing-eye.1.6.scad` (Magnetic Latch System).
+*   **Base Plate**: `design/base-plate.1.0.scad` (Matching Magnetic Lid).
+*   **Symbol**: `design/eye-symbol.1.0.scad` (Separate print).
+*   Prior versions are kept for historical reference.
 
 ### Generating 3D Printable Files (STL)
 To generate the STL files for printing:
@@ -151,3 +235,51 @@ To generate the STL files for printing:
     ```
 2.  The script will automatically detect OpenSCAD and compile all versions found in the `design/` folder.
 3.  Output STL files will be placed in the `build/` directory.
+
+---
+
+## 11. Version History & Development Log
+
+This section documents the iterative design process from initial concept to the current printable shell.
+
+### Current Version: v1.6 (Magnetic System)
+*   **Status**: Ready for Print.
+*   **Description**: Full magnetic latching enclosure system.
+*   **Components**:
+    1.  **Shell (v1.6)**: Added internal corner blocks with blind holes for 6x3mm magnets.
+    2.  **Base Plate (v1.0)**: New bottom lid with alignment tabs and matching magnet recesses.
+    3.  **Eye Symbol (v1.0)**: Separate "Vesica Piscis" style eye attachment.
+*   **Material**: Shell MUST be printed in **Semi-Transparent** material for checking internal status LEDs without opening.
+
+### Development Milestones
+
+*   **v1.5**: Clean Shell.
+    *   Reverted complex internals to validate form factor.
+    *   8-inch base, 45-degree slope.
+
+*   **v1.0**: Initial Parametric Design.
+    *   Established the OpenSCAD codebase.
+    *   Defined the core "Base + Pyramid" geometry.
+    *   Initial size: 4-inch base.
+    
+*   **v1.1**: Scaling Up.
+    *   Increased base size to 8 inches to accommodate larger internal volume requirements.
+    
+*   **v1.2**: Geometry Fixes.
+    *   Identified and fixed a bug where the internal hollow void was cutting completely through the roof.
+    *   Adjusted the inner pyramid height to leave a solid 0.25" roof for the top SMA connector.
+
+*   **v1.3 - v1.4**: Internal Mounting Experiments (Deprecated).
+    *   Analyzed ESP32-S3-WROOM-1-N16R8 dimensions via photos.
+    *   Measured LED alignment offsets (-6mm X, +18mm Y) to center the LED on the pyramid face.
+    *   Designed candidate internal brackets for "flush face" mounting.
+    *   *Decision*: Complexity of supporting floating internal rails was high; reverted to clean shell (v1.5) to ensure printability first.
+
+### Hardware Research (ESP32-S3)
+*   **Device**: ESP32-S3-WROOM-1-N16R8 Dev Board.
+*   **Dimensions**: 58mm x 28mm (PCB footprint).
+*   **LED Position**: The RGB LED is offset from the center.
+    *   **X-Offset**: ~6mm left of PCB center.
+    *   **Y-Position**: ~18mm from the USB edge.
+*   **Future Integration**: Future enclosure revisions will incorporate a mounting sled or clip that aligns this specific LED location with a window in the pyramid face.
+
