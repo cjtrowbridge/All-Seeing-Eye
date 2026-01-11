@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
-// #include <RadioLib.h> // Will implement in Phase 4
+#include <RadioLib.h>
+#include <SPI.h>
 
 class HAL {
 public:
@@ -12,10 +13,15 @@ public:
     void init();
     void setLed(uint8_t r, uint8_t g, uint8_t b);
     bool checkRadio(); // Power-On Self Test
+    
+    // Radio Access
+    CC1101* getRadio();
 
 private:
     HAL();
     Adafruit_NeoPixel* _pixels;
+    SPIClass* _radioSPI;
+    CC1101* _radio;
 };
 
 #endif

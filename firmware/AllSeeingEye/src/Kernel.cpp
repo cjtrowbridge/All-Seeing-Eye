@@ -3,12 +3,14 @@
 #include "RingBuffer.h" 
 #include "PluginManager.h"
 #include "SystemIdlePlugin.h"
+#include "RadioTestPlugin.h"
 #include <ArduinoOTA.h>
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
 
 // Pre-instantiate Plugins
 SystemIdlePlugin idlePlugin;
+RadioTestPlugin radioPlugin;
 
 Kernel& Kernel::instance() {
     static Kernel _instance;
@@ -60,7 +62,7 @@ void Kernel::setup() {
     );
 
     // 9. Load Default Plugin
-    PluginManager::instance().loadPlugin(&idlePlugin);
+    PluginManager::instance().loadPlugin(&radioPlugin);
 
     HAL::instance().setLed(128, 0, 128); // Purple (Ready)
     Logger::instance().info("Kernel", "System Ready. All-Seeing Eye is open.");
