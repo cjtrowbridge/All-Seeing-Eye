@@ -19,7 +19,84 @@ void WebServerManager::begin() {
 }
 
 void WebServerManager::setupRoutes() {
-    // 0. API: Discovery
+    // --------------------------------------------------
+    // 1. Specific API Endpoints (Register First)
+    // --------------------------------------------------
+
+    // API: Status
+    _server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
+        JsonDocument doc;
+        doc["uptime"] = millis();
+        doc["heap_free"] = ESP.getFreeHeap();
+        doc["psram_free"] = ESP.getFreePsram();
+        doc["flash_size"] = ESP.getFlashChipSize();
+        
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
+    // API: Configuration (GET)
+    _server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        String response = Config::instance().getAllAsJson();
+        request->send(200, "application/json", response);
+    });
+
+    // API: Configuration (POST)
+    AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/api/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        String jsonStr;
+        serializeJson(json, jsonStr);
+        
+        if (Config::instance().updateFromJson(jsonStr)) {
+            Logger::instance().info("Config", "Settings updated via API");
+            request->send(200, "application/json", "{\"status\":\"success\", \"message\":\"Config Updated. Reboot to apply network changes.\"}");
+            // Optional: Config::instance().save(); // Preferences are auto-saved in close/put
+        } else {
+            Logger::instance().error("Config", "JSON parsing failed");
+            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
+        }
+    });
+    _server.addHandler(handler);
+
+    // API: File System Index
+    _server.on("/api/fs", HTTP_GET, [](AsyncWebServerRequest *request){
+        JsonDocument doc;
+        JsonArray files = doc.to<JsonArray>();
+
+        File root = LittleFS.open("/");
+        File file = root.openNextFile();
+        while(file){
+            JsonObject f = files.add<JsonObject>();
+            f["name"] = String(file.name());
+            f["size"] = file.size();
+            file = root.openNextFile();
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
+    // API: System Logs
+    _server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
+        JsonDocument doc;
+        JsonArray logs = doc.to<JsonArray>();
+        
+        std::deque<String> logBuffer = Logger::instance().getLogs();
+        
+        // Return logs in insertion order
+        for(const auto& line : logBuffer) {
+            logs.add(line);
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
+    // --------------------------------------------------
+    // 2. Generic API Endpoint (Discovery)
+    // --------------------------------------------------
     _server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
         JsonDocument doc;
         JsonArray routes = doc.to<JsonArray>();
@@ -54,79 +131,8 @@ void WebServerManager::setupRoutes() {
         request->send(200, "application/json", response);
     });
 
-    // 1. Static Files (Dashboard)
-    // Serves files from LittleFS root
+    // --------------------------------------------------
+    // 3. Static Files (Catch-All fallthrough)
+    // --------------------------------------------------
     _server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
-
-    // 2. API: Status
-    _server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
-        JsonDocument doc;
-        doc["uptime"] = millis();
-        doc["heap_free"] = ESP.getFreeHeap();
-        doc["psram_free"] = ESP.getFreePsram();
-        doc["flash_size"] = ESP.getFlashChipSize();
-        
-        String response;
-        serializeJson(doc, response);
-        request->send(200, "application/json", response);
-    });
-
-    // 3. API: File System Index
-    _server.on("/api/fs", HTTP_GET, [](AsyncWebServerRequest *request){
-        JsonDocument doc;
-        JsonArray files = doc.to<JsonArray>();
-
-        File root = LittleFS.open("/");
-        File file = root.openNextFile();
-        while(file){
-            JsonObject f = files.add<JsonObject>();
-            f["name"] = String(file.name());
-            f["size"] = file.size();
-            file = root.openNextFile();
-        }
-        
-        String response;
-        serializeJson(doc, response);
-        request->send(200, "application/json", response);
-    });
-
-    // 4. API: Configuration (GET)
-    _server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
-        String response = Config::instance().getAllAsJson();
-        request->send(200, "application/json", response);
-    });
-
-    // 5. API: Configuration (POST)
-    AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/api/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
-        String jsonStr;
-        serializeJson(json, jsonStr);
-        
-        if (Config::instance().updateFromJson(jsonStr)) {
-            Logger::instance().info("Config", "Settings updated via API");
-            request->send(200, "application/json", "{\"status\":\"success\", \"message\":\"Config Updated. Reboot to apply network changes.\"}");
-            // Optional: Config::instance().save(); // Preferences are auto-saved in close/put
-        } else {
-            Logger::instance().error("Config", "JSON parsing failed");
-            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
-        }
-    });
-    _server.addHandler(handler);
-
-    // 6. API: System Logs
-    _server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
-        JsonDocument doc;
-        JsonArray logs = doc.to<JsonArray>();
-        
-        std::deque<String> logBuffer = Logger::instance().getLogs();
-        
-        // Return logs in reverse order (newest first) usually preferred for UI, 
-        // or standard order. Let's do standard order.
-        for(const auto& line : logBuffer) {
-            logs.add(line);
-        }
-        
-        String response;
-        serializeJson(doc, response);
-        request->send(200, "application/json", response);
-    });
 }
