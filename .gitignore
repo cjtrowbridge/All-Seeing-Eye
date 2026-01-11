@@ -1,2 +1,11 @@
 # Ignore the local wifi secrets file
 firmware/AllSeeingEye/secrets.h
+
+# Build artifacts
+firmware/build/
+firmware/*.bin
+firmware/*.elf
+firmware/*.map
+
+# Logs
+*.log

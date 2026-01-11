@@ -17,7 +17,7 @@ if not exist "!CLI_PATH!" (
 
 :: 2. CONFIGURATION
 :: ESP32-S3 Settings for N16R8
-set "FQBN=esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,USBMode=hwcdc,FlashMode=qio"
+set "FQBN=esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,USBMode=hwcdc,FlashMode=qio,PartitionScheme=app3M_fat9M_16MB"
 set "SKETCH_DIR=%~dp0AllSeeingEye"
 
 echo.

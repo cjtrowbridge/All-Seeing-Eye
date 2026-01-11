@@ -23,7 +23,7 @@ if not exist "!ESPOTA_PATH!" (
 
 :: 2. CONFIGURATION
 :: Must match the settings used for the initial upload
-set "FQBN=esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,USBMode=hwcdc,FlashMode=qio"
+set "FQBN=esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,USBMode=hwcdc,FlashMode=qio,PartitionScheme=app3M_fat9M_16MB"
 set "SKETCH_DIR=%~dp0AllSeeingEye"
 set "BUILD_PATH=%~dp0build"
 

@@ -72,7 +72,13 @@ To ensure the Radio never stutters, we use **Asynchronous** I/O and **Client-Sid
     *   **Serving**: The HTML/CSS/JS assets are compressed (GZIP) and stored in the **LittleFS** partition.
     *   **Logic**: The ESP32 serves *static files only*. The Browser downloads the app, runs the JS, and fetches JSON from the API to render charts/tables locally.
 
----
+### E. Logging System ("RAM Flight Recorder")
+To preserve flash longevity while still capturing detailed runtime events, logs are handled by a dedicated `Logger` class.
+*   **Dual Output**: 
+    1.  **Serial**: Real-time output for USB debugging.
+    2.  **RAM Ring Buffer**: Stores the last ~20KB (or 200 lines) of logs in Heap/PSRAM.
+*   **API Accessibility**: The `/api/logs` endpoint retrieves this buffer, allowing the Web Dashboard to show a "Console" view without needing a physical connection.
+*   **Thread Safety**: Protected by Mutex to allow safe logging from both Core 0 (System) and Core 1 (Plugins).
 
 ## 4. Expansion & Future-Proofing
 
@@ -95,17 +101,18 @@ This roadmap outlines the step-by-step construction of the ASE-OS to meet all ar
 
 ### Phase 1: Foundation & The "Kernel"
 **Goal**: Establish the Dual-Core OS, File System, and Network capabilities.
-- [ ] **Project Restructuring**: Convert the single `.ino` into a modular C++ structure (`Kernel.h`, `Config.h`, `HAL.h`).
-- [ ] **Partition Setup**: Verify and configure the 16MB Flash / 8MB PSRAM partition scheme (ensuring ample LittleFS space).
-- [ ] **LittleFS Integration**: Implement the file system mount and the **File Indexer API** (`/api/fs` endpoint).
-- [ ] **Async Web Server**: Setup the server to handle static file serving and JSON API headers.
-- [ ] **Core Splitting**: Create the FreeRTOS tasks to separate Logic (Core 0) from "Plugin Execution" (Core 1).
+- [x] **Project Restructuring**: Convert the single `.ino` into a modular C++ structure (`Kernel.h`, `Config.h`, `HAL.h`).
+- [x] **Partition Setup**: Verify and configure the 16MB Flash / 8MB PSRAM partition scheme (ensuring ample LittleFS space).
+- [x] **LittleFS Integration**: Implement the file system mount and the **File Indexer API** (`/api/fs` endpoint).
+- [x] **Core System Logging**: Implement RAM-based Ring Buffer logging and `/api/logs` endpoint.
+- [x] **Web Server Base**: Launch the `ESPAsyncWebServer` on Core 0 (upgraded for ESP32 Core 3.0+ compatibility).
+- [x] **OTA Support**: Restore ArduinoOTA for network-based firmware updates.
 
 ### Phase 2: Memory & Configuration
-**Goal**: Manage persistence and high-speed buffering.
+**Goal**: Safeguard the hardware and enable persistent settings.
 - [ ] **Config Manager**: Implement the Preferences-based settings manager (Key-Value store) and the `/api/config` endpoints (GET/POST).
 - [ ] **PSRAM Ring Buffer**: implementation of the high-speed circular data buffer in the 8MB PSRAM.
-- [ ] **Resource Monitor**: Create the `/api/status` endpoint to report real-time RAM, Flash, and uptime stats.
+- [x] **Resource Monitor**: Create the `/api/status` endpoint to report real-time RAM, Flash, and uptime stats.
 
 ### Phase 3: The Plugin Engine
 **Goal**: Build the extensible logic system.
