@@ -272,11 +272,11 @@ To generate the STL files for printing:
 ### Print Preview & Estimates
 ![Print Preview](assets/images/print-preview.png)
 
-(Note: Estimates below are approximate place holders based on 15% infill and standard PETG settings).
+(Note: Estimates below are approximate place holders based on 15% infill and standard PLA settings with tree support).
 
-*   **Print Time**: 5 hours, 12 minutes
-*   **Material Usage**: ~200.24g
-*   **Material Cost**: ~$3.99 (at $19.99/kg)
+*   **Print Time**: 4 hours, 45 minutes
+*   **Material Usage**: ~157.75g
+*   **Material Cost**: ~$3.15 (at $19.99/kg)
 
 ---
 
