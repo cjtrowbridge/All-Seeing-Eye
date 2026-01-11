@@ -1,2 +1,2 @@
 # Ignore the local wifi secrets file
-firmware/AllSeeingEye/wifi.h
+firmware/AllSeeingEye/secrets.h

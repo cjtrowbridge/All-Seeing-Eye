@@ -1,8 +1,8 @@
-#include <Adafruit_NeoPixel.h>
 #include <WiFi.h>
 #include <ESPmDNS.h>
-#include <NetworkUdp.h>
+#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <Adafruit_NeoPixel.h>
 
 // Board: ESP32-S3-WROOM-1 N16R8
 // LED: GPIO 48 (Common for S3 DevKits) or 47.
@@ -10,7 +10,7 @@
 #define NUM_PIXELS 1
 
 // WIFI CONFIGURATION
-#include "wifi.h"
+#include "secrets.h"
 
 Adafruit_NeoPixel pixels(NUM_PIXELS, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
 
