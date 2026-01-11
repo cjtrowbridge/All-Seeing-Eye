@@ -78,30 +78,62 @@ void Kernel::setupLittleFS() {
 
 void Kernel::setupWiFi() {
     Logger::instance().info("Kernel", "Connecting to WiFi...");
-    // TODO: Load from Config::instance().getWifiSSID() in Phase 2
-    // For now use secrets.h
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
-    
-    // Simple blocking connect for prototype
-    int retries = 0;
-    while (WiFi.status() != WL_CONNECTED && retries < 20) {
-        delay(500);
-        // We generally avoid logging every dot in our memory buffer, so we keep Serial for dots
-        Serial.print("."); 
-        retries++;
+
+    String confSSID = Config::instance().getWifiSSID();
+    String confPass = Config::instance().getWifiPass();
+    bool connected = false;
+
+    // 1. Try Configured Credentials
+    if (confSSID.length() > 0) {
+        Logger::instance().info("Kernel", "Attempting connection to Saved SSID: %s", confSSID.c_str());
+        WiFi.begin(confSSID.c_str(), confPass.c_str());
+        
+        int retries = 0;
+        while (WiFi.status() != WL_CONNECTED && retries < 15) { // 7.5 seconds
+            delay(500);
+            Serial.print(".");
+            retries++;
+        }
+        Serial.println("");
+        
+        if (WiFi.status() == WL_CONNECTED) {
+            connected = true;
+        } else {
+            Logger::instance().warn("Kernel", "Saved credentials failed. Trying fallback...");
+        }
     }
-    Serial.println("");
+
+    // 2. Fallback to Secrets (if not connected)
+    if (!connected) {
+        Logger::instance().info("Kernel", "Attempting connection to Fallback SSID: %s", ssid);
+        WiFi.begin(ssid, password);
+        
+        int retries = 0;
+        while (WiFi.status() != WL_CONNECTED && retries < 20) {
+            delay(500);
+            Serial.print("."); 
+            retries++;
+        }
+        Serial.println("");
+        
+        if (WiFi.status() == WL_CONNECTED) {
+            connected = true;
+        }
+    }
     
-    if (WiFi.status() == WL_CONNECTED) {
+    if (connected) {
         Logger::instance().info("Kernel", "WiFi Connected. IP: %s", WiFi.localIP().toString().c_str());
     } else {
-        Logger::instance().warn("Kernel", "WiFi Connection Failed (using default credentials)");
+        Logger::instance().error("Kernel", "WiFi Connection FAILED. Starting AP Mode...");
+        WiFi.softAP("AllSeeingEye-Recovery");
+        Logger::instance().info("Kernel", "AP Started: AllSeeingEye-Recovery");
     }
 }
 
 void Kernel::setupOTA() {
-    ArduinoOTA.setHostname("AllSeeingEye");
+    String hostname = Config::instance().getHostname();
+    ArduinoOTA.setHostname(hostname.c_str());
     
     ArduinoOTA.onStart([]() {
         String type;

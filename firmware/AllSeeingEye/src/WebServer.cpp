@@ -2,6 +2,8 @@
 #include <LittleFS.h>
 #include "Kernel.h" // For status access
 #include "Logger.h" // Add Logger
+#include "AsyncJson.h" 
+#include <ArduinoJson.h>
 
 WebServerManager& WebServerManager::instance() {
     static WebServerManager _instance;
@@ -17,6 +19,41 @@ void WebServerManager::begin() {
 }
 
 void WebServerManager::setupRoutes() {
+    // 0. API: Discovery
+    _server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
+        JsonDocument doc;
+        JsonArray routes = doc.to<JsonArray>();
+
+        JsonObject r1 = routes.add<JsonObject>();
+        r1["path"] = "/api";
+        r1["method"] = "GET";
+        r1["desc"] = "List available API endpoints";
+
+        JsonObject r2 = routes.add<JsonObject>();
+        r2["path"] = "/api/status";
+        r2["method"] = "GET";
+        r2["desc"] = "System health stats (RAM, Uptime)";
+
+        JsonObject r3 = routes.add<JsonObject>();
+        r3["path"] = "/api/config";
+        r3["method"] = "GET/POST";
+        r3["desc"] = "Get or Set system configuration";
+
+        JsonObject r4 = routes.add<JsonObject>();
+        r4["path"] = "/api/fs";
+        r4["method"] = "GET";
+        r4["desc"] = "List files in LittleFS";
+
+        JsonObject r5 = routes.add<JsonObject>();
+        r5["path"] = "/api/logs";
+        r5["method"] = "GET";
+        r5["desc"] = "Get system log buffer";
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
     // 1. Static Files (Dashboard)
     // Serves files from LittleFS root
     _server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
@@ -53,7 +90,29 @@ void WebServerManager::setupRoutes() {
         request->send(200, "application/json", response);
     });
 
-    // 4. API: System Logs
+    // 4. API: Configuration (GET)
+    _server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        String response = Config::instance().getAllAsJson();
+        request->send(200, "application/json", response);
+    });
+
+    // 5. API: Configuration (POST)
+    AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/api/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        String jsonStr;
+        serializeJson(json, jsonStr);
+        
+        if (Config::instance().updateFromJson(jsonStr)) {
+            Logger::instance().info("Config", "Settings updated via API");
+            request->send(200, "application/json", "{\"status\":\"success\", \"message\":\"Config Updated. Reboot to apply network changes.\"}");
+            // Optional: Config::instance().save(); // Preferences are auto-saved in close/put
+        } else {
+            Logger::instance().error("Config", "JSON parsing failed");
+            request->send(400, "application/json", "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
+        }
+    });
+    _server.addHandler(handler);
+
+    // 6. API: System Logs
     _server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
         JsonDocument doc;
         JsonArray logs = doc.to<JsonArray>();

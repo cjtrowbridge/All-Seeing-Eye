@@ -58,7 +58,9 @@ To ensure the Radio never stutters, we use **Asynchronous** I/O and **Client-Sid
 
 1.  **The API (Backend)**: Built on `ESPAsyncWebServer`.
     *   **Response Format**: STRICTLY JSON.
+    *   **Discovery**: `GET /api` lists all available endpoints and their descriptions. This list must be kept current with every new feature.
     *   **Endpoints**:
+        *   `GET /api`: Index of all endpoints.
         *   `GET /api/status`: System health (RAM/PSRAM/Flash stats), Current Plugin, Uptime.
         *   `GET /api/config`: Returns settings JSON.
         *   `POST /api/config`: Updates settings & hot-reloads.
@@ -110,7 +112,9 @@ This roadmap outlines the step-by-step construction of the ASE-OS to meet all ar
 
 ### Phase 2: Memory & Configuration
 **Goal**: Safeguard the hardware and enable persistent settings.
-- [ ] **Config Manager**: Implement the Preferences-based settings manager (Key-Value store) and the `/api/config` endpoints (GET/POST).
+- [x] **Config Manager**: Implement the Preferences-based settings manager (Key-Value store) and the `/api/config` endpoints (GET/POST).
+- [x] **Smart Network Boot**: Implemented priority connection logic (Saved Config -> Secrets.h -> AP Mode Recovery).
+- [x] **API Discovery**: Implement the `/api` endpoint to list all available routes.
 - [ ] **PSRAM Ring Buffer**: implementation of the high-speed circular data buffer in the 8MB PSRAM.
 - [x] **Resource Monitor**: Create the `/api/status` endpoint to report real-time RAM, Flash, and uptime stats.
 
