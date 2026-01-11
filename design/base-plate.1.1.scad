@@ -1,15 +1,19 @@
 // All-Seeing Eye - Base Plate
-// Version: 1.0 (Corresponds to Shell v1.6)
+// Version: 1.1 
+// Changes: Widen plate to match full base_width (bottom mount). Taller tabs to compensate.
 
 /* [Global Dimensions] */
 INCH = 25.4;
 
 base_width = 8.0 * INCH;
-plate_thickness = 3.0;
-wall_thickness = 3.0;
+plate_thickness = 2.0;
+wall_thickness = 2.0;
 
 // Alignment Tabs
-tab_height = 0.25 * INCH; // Stacks on top of plate
+// Plate is external. Tabs project up into the shell.
+// Shell block starts at 0.25 inch.
+tab_height = 0.25 * INCH; 
+
 total_height = plate_thickness + tab_height;
 
 // Magnet logic
@@ -21,15 +25,15 @@ $fn = 60;
 
 module base_plate_main() {
     
-    // Fit tolerance
-    tol = 0.5; // mm gap total (0.25 per side)
-    
-    plate_w = base_width - 2*wall_thickness - tol;
+    // Plate is now full width, so no tolerance needed relative to wall INTERIOR.
+    // However, we might want a tiny tolerance if it needs to fit... 
+    // but user asked for "full width of the pyramid's outer edge".
+    plate_w = base_width;
     
     difference() {
         // 1. Positive Volume
         union() {
-            // A. Base Plate (Fits INSIDE the shell walls)
+            // A. Base Plate (Full Width)
             translate([0, 0, plate_thickness/2])
                 cube([plate_w, plate_w, plate_thickness], center=true);
             
@@ -48,14 +52,11 @@ module base_plate_main() {
 module alignment_tabs() {
     // Generate 4 corner triangles
     // They fit INSIDE the shell walls.
-    // The plate is ALREADY inside the walls. 
-    // So the tabs are flush with the plate corners?
-    // Let's keep them aligned to the same coordinate system.
     
+    // Offset must still be calculated based on the INTERIOR wall position
     offset_dist = base_width/2 - wall_thickness; // Corner of the inner void
     
-    // Triangle size: Fill the corner? 
-    // Let's make them 1 inch legs for stability
+    // Triangle size
     tri_leg = 2.0 * INCH;
     
     // Corner 1 (+X, +Y)
@@ -87,15 +88,10 @@ module magnet_holes() {
     offset_dist = base_width/2 - wall_thickness; 
     tri_leg = 2.0 * INCH;
     
-    // Magnet position: centered in the triangle's bulk?
-    // Let's place it at (leg/3, leg/3) from the inner corner (Center of mass of triangle is 1/3)
-    // Actually, closer to corner is better for snapping. Let's do 0.25 inch from corner.
+    // Magnet position
     mag_offset = 0.75 * INCH;
     
     // Calculate global positions relative to center
-    // Inner corner is at +/- offset_dist
-    // We want to move 'inward' by mag_offset
-    
     px = offset_dist - mag_offset;
     py = offset_dist - mag_offset;
     

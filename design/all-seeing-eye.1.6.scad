@@ -8,7 +8,7 @@ INCH = 25.4;
 // Base Specifications
 base_width = 8.0 * INCH;
 base_height = 0.5 * INCH; // The vertical rim before slope
-wall_thickness = 0.25 * INCH;
+wall_thickness = 2.0;
 
 // Pyramid Specifications
 slope_angle = 45; 
@@ -21,10 +21,9 @@ usb_cutout_width = 0.6 * INCH;
 usb_cutout_height = 0.3 * INCH;
 
 // Magnetic Latch Specifications
-tri_leg = 1.0 * INCH; // Size of corner block
-// The lid tabs occupy Z=0.25 to Z=0.5 inside the shell (if base plate is 0.25 thick).
-// So shell blocks must start at Z=0.5.
-block_start_z = 0.5 * INCH;
+tri_leg = 2.0 * INCH; // Size of corner block
+// Base plate is external/underneath. Tabs project 0.25 inch into shell.
+block_start_z = 0.25 * INCH;
 block_height = 0.25 * INCH; 
 magnet_diam = 6.2;
 // We drill from the top of the block (Z=0.75) downwards.
@@ -56,17 +55,12 @@ module shell_main() {
                     cube([base_width - 2*wall_thickness, base_width - 2*wall_thickness, base_height + 0.1], center=true);
                 
                 // EXCLUDE corners from the hollow (creating solid blocks)
-                // Position: Inside corners, but starting HIGHER now.
-                // The blocks are now largely inside the pyramid volume, not the base_height volume?
-                // Wait, if block_start_z = 0.5, and base_height = 0.5.
-                // The blocks are entirely above the "Base Prism".
-                // So this exclusion from "Hollow Base" might be irrelevant if they are above it.
-                // BUT, "Hollow Pyramid" starts at base_height.
-                // So we need to exclude them from "Hollow Pyramid" instead.
-                
-                // Let's Keep this scope but move the translation logic.
-                // Actually, if blocks are > 0.5, they don't intersect "Hollow Base" (0 to 0.5).
-                // So this section does nothing for blocks > 0.5.
+                // NOW RELEVEANT because blocks start at 0.25", inside this 0.5" zone.
+                if(true) {
+                    offset_dist = base_width/2 - wall_thickness;
+                    translate([0,0, block_start_z])
+                        corner_blocks(tri_leg, block_height, offset_dist);
+                }
             }
 
             difference() {
@@ -157,7 +151,7 @@ module corner_triangle(leg, h) {
 
 module magnet_recesses() {
     offset_dist = base_width/2 - wall_thickness;
-    mag_offset = 0.25 * INCH;
+    mag_offset = 0.75 * INCH;
     
     px = offset_dist - mag_offset; // Relative to center
     py = offset_dist - mag_offset;

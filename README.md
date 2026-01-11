@@ -280,7 +280,33 @@ To generate the STL files for printing:
 
 ---
 
-## 11. Version History & Development Log
+## 11. Wiring Guide (ESP32-S3 N16R8)
+
+The system uses an **ESP32-S3-WROOM-1 N16R8** development board. This board has a different pinout than the classic ESP32.
+
+The recommended wiring uses the **Left Header** almost exclusively to keep cabling tidy, and because thats all you can access in a standard breadboard with a package this size. It utilizes the default hardware SPI pins for the S3 (FSPI).
+
+| CC1101 Pin | Pin Name | Function | ESP32-S3 Pin | Location on Board |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | **GND** | Ground | **GND** | Bottom Left (G) |
+| 2 | **VCC** | Power (3.3V) | **3V3** | Top Left (Pin 1 or 2) |
+| 3 | **GDO0** | Interrupt (Differs from v1) | **GPIO 4** | Left Side (Top) |
+| 4 | **CSN** | Chip Select | **GPIO 10** | Left Side (Middle, marked FSPICS0) |
+| 5 | **SCK** | SPI Clock | **GPIO 12** | Left Side (Middle, marked FSPICLK) |
+| 6 | **MOSI** | Master Out | **GPIO 11** | Left Side (Middle, marked FSPIIO5) |
+| 7 | **MISO** | Master In | **GPIO 13** | Left Side (Middle) |
+| 8 | **GDO2** | Interrupt 2 (Optional) | **GPIO 5** | Left Side (Top) |
+
+### Additional Hardware Notes
+*   **Onboard RGB LED**: The built-in status LED on this specific board is on **GPIO 47** (or 48 on some variants).
+*   **Power & Programming**: 
+    *   **Right Port (UART)**: Use this for standard programming and serial monitoring. It runs through the onboard CH343P chip for a reliable connection.
+    *   **Left Port (USB)**: This is the native ESP32-S3 USB (OTG) port. It can power the board, but is used for advanced USB device emulation.
+*   **Antennae**: Ensure the CC1101 antenna is connected before powering on the device to avoid damage to the PA (Power Amplifier).
+
+---
+
+## 12. Version History & Development Log
 
 This section documents the iterative design process from initial concept to the current printable shell.
 
