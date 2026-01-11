@@ -1,3 +1,24 @@
+# Developer Protocol & Tips
+**Critical instructions for Agent/Devs to avoid build loops:**
+
+1.  **Build System Limitations**: 
+    -   Arduino's build system struggles with complex relative paths in `#include`. 
+    -   **Rule**: Keep all header files flat in `src/` (e.g., `src/CC1101Plugin.h`, not `src/plugins/radios/CC1101Plugin.h`). Complexity is managed by namespaces, not folders.
+
+2.  **Build Automation**:
+    -   **Never** manually run `arduino-cli` commands in the terminal. The syntax is brittle on PowerShell.
+    -   **Rule**: Always use `.\upload_ota.bat`. It handles library paths and OTA upload arguments reliably.
+
+3.  **Concurrency (Dual Core)**:
+    -   Core 0 (System) and Core 1 (Plugin) share resources.
+    -   **Rule**: Always use `xSemaphoreTake` with a timeout (e.g., `pdMS_TO_TICKS(100)`) when accessing shared objects (like the Plugin pointer). Never block indefinitely.
+
+4.  **Logging & Debugging**:
+    -   **Rule**: Do NOT create ad-hoc text files (e.g., `output.txt`, `debug.txt`) in the repo. They clutter the git history.
+    -   **Rule**: If you must dump output to a file, use the `.log` extension (e.g., `build.log`), as these are globally ignored by `.gitignore`.
+
+---
+
 # All-Seeing-Eye Firmware Architecture
 
 This document outlines the **ASE-OS (All-Seeing-Eye Operating System)**, the firmware architecture operating on the ESP32-S3.
@@ -115,14 +136,14 @@ This roadmap outlines the step-by-step construction of the ASE-OS to meet all ar
 - [x] **Config Manager**: Implement the Preferences-based settings manager (Key-Value store) and the `/api/config` endpoints (GET/POST).
 - [x] **Smart Network Boot**: Implemented priority connection logic (Saved Config -> Secrets.h -> AP Mode Recovery).
 - [x] **API Discovery**: Implement the `/api` endpoint to list all available routes.
-- [ ] **PSRAM Ring Buffer**: implementation of the high-speed circular data buffer in the 8MB PSRAM.
+- [x] **PSRAM Ring Buffer**: Implemented 4MB Circular Buffer for high-speed data recording.
 - [x] **Resource Monitor**: Create the `/api/status` endpoint to report real-time RAM, Flash, and uptime stats.
 
 ### Phase 3: The Plugin Engine
 **Goal**: Build the extensible logic system.
-- [ ] **Interface Definition**: Create the `ASEPlugin` abstract base class (Setup, Loop, Teardown, GetJson).
-- [ ] **Plugin Manager**: Build the "Switcher" logic that stops one plugin, clears memory, and starts another.
-- [ ] **Dummy Plugin**: Create a "SystemIdle" plugin to verify the switching logic and API responses without radio hardware.
+- [x] **Interface Definition**: Create the `ASEPlugin` abstract base class (Setup, Loop, Teardown, GetJson).
+- [x] **Plugin Manager**: Build the "Switcher" logic that stops one plugin, clears memory, and starts another.
+- [x] **Dummy Plugin**: Create a "SystemIdle" plugin to verify the switching logic and API responses without radio hardware.
 
 ### Phase 4: Hardware Drivers & Plugins
 **Goal**: Bring the "All-Seeing Eye" to life with concrete radio modes.

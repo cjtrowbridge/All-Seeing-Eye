@@ -7,6 +7,7 @@
 #include "WebServer.h"
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <ArduinoJson.h>
 
 class Kernel {
 public:
@@ -14,6 +15,9 @@ public:
     
     void setup();
     void loop();
+    
+    // Status reporting
+    void getStatus(JsonObject& doc);
 
 private:
     Kernel();

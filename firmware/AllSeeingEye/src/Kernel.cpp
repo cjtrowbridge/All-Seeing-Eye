@@ -1,8 +1,14 @@
 #include "Kernel.h"
 #include "Logger.h"
+#include "RingBuffer.h" 
+#include "PluginManager.h"
+#include "SystemIdlePlugin.h"
 #include <ArduinoOTA.h>
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
+
+// Pre-instantiate Plugins
+SystemIdlePlugin idlePlugin;
 
 Kernel& Kernel::instance() {
     static Kernel _instance;
@@ -31,14 +37,18 @@ void Kernel::setup() {
     // 4. Config
     Config::instance().begin();
 
-    // 5. Network & WiFi
+    // 5. Ring Buffer (PSRAM)
+    // Allocate 4MB for high-speed logging/data
+    RingBuffer::instance().begin(4 * 1024 * 1024);
+
+    // 6. Network & WiFi
     setupWiFi();
     setupOTA();
 
-    // 6. Web Server
+    // 7. Web Server
     WebServerManager::instance().begin();
 
-    // 7. Start Plugin Task (Core 1)
+    // 8. Start Plugin Task (Core 1)
     xTaskCreatePinnedToCore(
         pluginTask,   // Function
         "PluginTask", // Name
@@ -48,6 +58,9 @@ void Kernel::setup() {
         NULL,         // Handle
         1             // Core 1
     );
+
+    // 9. Load Default Plugin
+    PluginManager::instance().loadPlugin(&idlePlugin);
 
     HAL::instance().setLed(128, 0, 128); // Purple (Ready)
     Logger::instance().info("Kernel", "System Ready. All-Seeing Eye is open.");
@@ -172,8 +185,25 @@ void Kernel::setupOTA() {
 void Kernel::pluginTask(void* parameter) {
     Logger::instance().info("Core1", "Plugin Engine Started");
     while(true) {
-        // Phase 3: Execute ActivePlugin->loop()
-        // For now, just yield
-        delay(10);
+        PluginManager::instance().runLoop();
+        // The runLoop handles its own yields if needed, 
+        // but a small safety yield here doesn't hurt if runLoop exits early.
+        delay(1); 
     }
+}
+
+void Kernel::getStatus(JsonObject& doc) {
+    // Existing status fields
+    doc["uptime"] = millis();
+    doc["heap_free"] = ESP.getFreeHeap();
+    doc["psram_free"] = ESP.getFreePsram();
+    doc["flash_size"] = ESP.getFlashChipSize();
+
+    // RingBuffer stats
+    doc["rb_size"] = RingBuffer::instance().capacity();
+    doc["rb_available"] = RingBuffer::instance().available();
+        
+    String response;
+    serializeJson(doc, response);
+    Logger::instance().info("Kernel", "Status: %s", response.c_str());
 }

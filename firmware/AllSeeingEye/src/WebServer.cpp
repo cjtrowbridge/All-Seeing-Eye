@@ -2,6 +2,8 @@
 #include <LittleFS.h>
 #include "Kernel.h" // For status access
 #include "Logger.h" // Add Logger
+#include "RingBuffer.h" // Add RingBuffer
+#include "PluginManager.h" // Add PluginManager
 #include "AsyncJson.h" 
 #include <ArduinoJson.h>
 
@@ -31,6 +33,11 @@ void WebServerManager::setupRoutes() {
         doc["psram_free"] = ESP.getFreePsram();
         doc["flash_size"] = ESP.getFlashChipSize();
         
+        doc["rb_capacity"] = RingBuffer::instance().capacity();
+        doc["rb_usage"] = RingBuffer::instance().available();
+
+        doc["plugin"] = PluginManager::instance().getActivePluginName();
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response);
