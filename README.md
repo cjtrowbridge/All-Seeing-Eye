@@ -237,18 +237,18 @@ The physical enclosure is designed programmatically using **OpenSCAD**. This ens
 
 
 ### Source Files
-*   Design files are located in the `design/` directory.
+*   Design files are located in the `3d models/design/` directory.
 
 #### Core Files
-*   **Shell (Blank)**: `design/all-seeing-eye.1.6.scad` (Magnetic Latch System, Blank Face).
-*   **Base Plate**: `design/base-plate.1.0.scad` (Matching Magnetic Lid).
-*   **Eye Symbol**: `design/eye-symbol.1.0.scad` (Separate print).
+*   **Shell (Blank)**: `3d models/design/all-seeing-eye.1.6.scad` (Magnetic Latch System, Blank Face).
+*   **Base Plate**: `3d models/design/base-plate.1.0.scad` (Matching Magnetic Lid).
+*   **Eye Symbol**: `3d models/design/eye-symbol.1.0.scad` (Separate print).
 
 #### Combined Variants
-*   **Combined Shell**: `design/combined-1.1.scad` (Shell + Eye formed as one piece. **Includes transparency cutout** behind the eye for LED visibility).
+*   **Combined Shell**: `3d models/design/combined-1.1.scad` (Shell + Eye formed as one piece. **Includes transparency cutout** behind the eye for LED visibility).
 
 #### Visualization
-*   **Assembly**: `design/assembly.1.0.scad` (Visualization only).
+*   **Assembly**: `3d models/design/assembly.1.0.scad` (Visualization only).
 
 ### Printing Strategies
 You can choose between two assembly methods:
@@ -266,6 +266,7 @@ To generate the STL files for printing:
 
 1.  Run the automated build script:
     ```cmd
+    cd "3d models"
     .\build.bat
     ```
 2.  The script will automatically detect OpenSCAD and compile all versions found in the `design/` folder.
