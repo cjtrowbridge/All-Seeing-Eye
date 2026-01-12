@@ -54,16 +54,19 @@ ASEPlugin* PluginManager::getActivePlugin() {
 }
 
 String PluginManager::getActivePluginName() {
-    // This might be called from Core 0, so we should really lock if we want to be 100% safe,
-    // but reading a pointer to get a name string is generally low risk if the string itself is constant.
-    // We'll take mutex for safety.
-    String name = "None";
-    // Wait up to 500ms for the loop to yield
-    if (xSemaphoreTake(_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+    if (_activePlugin) {
+        return _activePlugin->getName();
+    }
+    return "None";
+}
+
+String PluginManager::getActiveTaskName() {
+    String t = "None";
+    if (xSemaphoreTake(_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (_activePlugin) {
-            name = _activePlugin->getName();
+            t = _activePlugin->getTaskName();
         }
         xSemaphoreGive(_mutex);
     }
-    return name;
+    return t;
 }

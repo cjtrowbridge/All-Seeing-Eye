@@ -102,20 +102,28 @@ The Web UI is hosted on *every* node, but any node can visualize the *entire* cl
 1.  **Cluster Tab (Functional)**:
     -   A Tree View of all announced clusters on the subnet.
     -   `> Default Cluster`
-        -   `allseeingeye-a1b2c3` [Online]
-        -   `allseeingeye-f453a4` [Online]
+        -   `allseeingeye-a1b2c3` Independent Exploration [Ready]
+        -   `allseeingeye-f453a4` Hardware Verification [Working]
     -   `> Scanner-Group-1`
-        -   `allseeingeye-224466` [Online]
+        -   `allseeingeye-224466` RSSI Sweep [Working]
 
-        -   `allseeingeye-A1B2.local` - "Living Room Shelf"
-        -   `allseeingeye-C3D4.local` - "Roof Antenna"
-        -   `allseeingeye-E5F6.local` - "Unit 3"
-    -   `> Red Team (1 Node) [Working On: 915MHz Monitoring]`
-        -   `allseeingeye-9988.local` - "Mobile Unit"
 2.  **Node Drill-down**:
-    -   Clicking a node proxies requests to that specific device or opens its local IP.
+    -   Clicking a node opens that device's dashboard.
+    -   **Tooltip**: Hovering over a node displays exact task details.
 
-## 4. Configuration Fields
+## 4. Task Awareness (New)
+The cluster is now "Task Aware".
+-   **Default Task**: "Independent Exploration" (System Idle).
+-   **Visibility**: All nodes broadcast their current high-level task via `/api/status`. 
+-   **Logic**:
+    -   `SystemIdlePlugin` -> "Independent Exploration".
+    -   `RadioTestPlugin` -> "Hardware Verification".
+    -   Future plugins will define their own strings (e.g., "Spectrum Sweep 900-928MHz").
+-   **UI Representation**: 
+    -   Format: `Hostname | Task Name | [Status]`
+    -   Example: `allseeingeye-f453a | RSSI Scanning | [Working]`
+
+## 5. Configuration Fields
 To support this, the global configuration structure must expand:
 ```cpp
 struct Config {

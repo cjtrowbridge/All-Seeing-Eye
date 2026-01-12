@@ -59,6 +59,8 @@ void WebServerManager::setupRoutes() {
             }
         }
         doc["status"] = statusMsg;
+        doc["task"] = PluginManager::instance().getActiveTaskName();
+        doc["clusterName"] = Config::instance().getString("cluster", "Default");
 
         String response;
         serializeJson(doc, response);

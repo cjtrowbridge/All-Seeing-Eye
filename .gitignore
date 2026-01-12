@@ -9,3 +9,6 @@ firmware/*.map
 
 # Logs
 *.log
+
+# Deployment Configuration
+firmware/known_hosts.txt

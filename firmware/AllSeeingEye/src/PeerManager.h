@@ -13,8 +13,10 @@ struct Peer {
     String ip;
     String cluster;
     String status;
+    String task; // New field
     bool online;
     unsigned long lastSeen;
+    unsigned long lastProbe; // timestamp of last successful /api/status check
 };
 
 struct IgnoredHost {
@@ -37,6 +39,9 @@ public:
 
     // Manual Tool
     bool pingHost(String ip);
+    
+    // Updates status for a specific peer
+    bool probePeer(String ip);
 
 private:
     PeerManager();
@@ -50,14 +55,16 @@ private:
     // Subnet Scanner State
     bool _subnetScanActive = true; 
     int _currentSubnetIndex = 1;
-    
+    unsigned long _lastProbeCheck = 0; // For background polling
+
     void discover();
     void processVerificationQueue();
     void runSubnetScanStep();
+    void maintainPeers(); // New periodic maintenance
     
     bool isPeered(String ip);
     bool isIgnored(String ip);
-    bool verifyPeer(String ip);
+    // bool verifyPeer(String ip); // Replaced by probePeer
 };
 
 #endif

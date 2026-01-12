@@ -196,18 +196,11 @@
         <!-- Tab Content: Clusters -->
         <div id="tab-clusters" class="tab-content active">
             <div id="cluster-tree">
-                <div class="cluster-root">Default Cluster (Local)</div>
-                <div class="tree-node">
-                    <div class="device-node">
-                        <span id="device-hostname" style="color:white; font-weight:bold;">Loading...</span>
-                        <span id="device-status" style="margin-left:10px; font-size: 0.8rem;">...</span>
-                        <div style="flex:1"></div>
-                        <span style="color:#666; font-size:0.8rem;">(This Device)</span>
-                    </div>
-                </div>
+                <!-- Dynamic Content Loaded by JS -->
+                <div style="text-align:center; padding:20px; color:#666;">Loading Cluster Matrix...</div>
             </div>
             <div style="margin-top:20px; color:#666; font-size:0.8rem; text-align:center;">
-                Scanning for peers via mDNS every 30s...
+                Discovery: mDNS (Active) | Viral Intercept (Active) | Subnet Scan (Auto)
             </div>
         </div>
 
@@ -283,6 +276,8 @@
 
         // State
         const IP = window.location.hostname === "localhost" ? "allseeingeye.local" : window.location.hostname;
+        // Local Device store
+        let myDevice = { hostname: "Loading...", ip: IP, status: "Unknown", cluster: "Default", online: true, isSelf: true };
         
         const canvas = document.getElementById('spectrum-canvas');
         const ctx = canvas.getContext('2d');
@@ -314,23 +309,12 @@
                 document.getElementById('stat-uptime').innerText = Math.round(data.uptime/1000) + "s";
                 document.getElementById('stat-plugin').innerText = data.plugin || "None";
                 
-                // Update Hostname in Cluster View
-                if(data.hostname) {
-                    document.getElementById('device-hostname').innerText = data.hostname + ".local";
-                }
-
-                // Update Status in Cluster View
-                const statusSpan = document.getElementById('device-status');
-                if(data.status) {
-                    statusSpan.innerText = "[" + data.status + "]";
-                    
-                    // Simple text matching for color
-                    if (data.status.startsWith("Ready") || data.status.startsWith("Working")) {
-                        statusSpan.style.color = "var(--success-color)";
-                    } else {
-                        statusSpan.style.color = "var(--danger-color)"; // Red for errors
-                    }
-                }
+                // Update Local Device State
+                if(data.hostname) myDevice.hostname = data.hostname;
+                myDevice.status = data.status || "Unknown";
+                myDevice.cluster = data.clusterName || "Default"; // Backend provides clusterName
+                myDevice.task = data.task || "Unknown Task";
+                myDevice.lastProbe = Date.now(); // Self is always fresh
 
                 document.getElementById('connection-status').innerText = "ONLINE";
                 document.getElementById('connection-status').classList.add('active');
@@ -362,45 +346,79 @@
                 const res = await fetch('/api/peers');
                 const peers = await res.json();
                 
-                let neighborsDiv = document.getElementById('neighbors-list');
-                if(!neighborsDiv) {
-                    const container = document.getElementById('cluster-tree');
-                    neighborsDiv = document.createElement('div');
-                    neighborsDiv.id = 'neighbors-list'; // Container for external peers
-                    container.appendChild(neighborsDiv);
-                }
+                const container = document.getElementById('cluster-tree');
                 
-                if(peers.length === 0) {
-                    neighborsDiv.innerHTML = "<div style='text-align:center;color:#444;margin-top:10px;font-size:0.8rem;'>No peers detected</div>";
-                    return;
-                }
+                // Merge Self into Peer List for unified rendering
+                const allNodes = [ myDevice, ...peers ];
                 
                 // Group by Cluster
                 const clusters = {};
-                peers.forEach(p => {
-                    const c = p.cluster || "Unknown";
+                allNodes.forEach(p => {
+                    // Normalize cluster name
+                    let c = p.cluster;
+                    if (!c || c === "") c = "Default";
+                    
                     if(!clusters[c]) clusters[c] = [];
                     clusters[c].push(p);
                 });
                 
                 // Build HTML
                 let html = "";
-                for (const [cName, cPeers] of Object.entries(clusters)) {
-                    // Differentiate visual style for discovered clusters
-                    html += `<div class="cluster-root" style="margin-top:15px; color:#bb86fc;">Cluster: ${cName}</div>`;
-                    html += cPeers.map(p => `
+                // Sort keys so Default is always first (or alphabetical)
+                const sortedKeys = Object.keys(clusters).sort();
+                
+                for (const cName of sortedKeys) {
+                    const cPeers = clusters[cName];
+                    
+                    // Is this the cluster I am in?
+                    const isMyCluster = (cName === myDevice.cluster);
+                    const headerColor = isMyCluster ? "var(--success-color)" : "#bb86fc";
+                    const suffix = isMyCluster ? " (Local)" : "";
+                    
+                    html += `<div class="cluster-root" style="margin-top:15px; color:${headerColor};">Cluster: ${cName}${suffix}</div>`;
+                    
+                    html += cPeers.map(p => {
+                         const isMe = p.isSelf;
+                         // Link: use hostname.local if available, else fallback to IP? 
+                         // Hostname is cleaner. But we must be sure .local works. 
+                         // mDNS is standard.
+                         const link = `http://${p.hostname}.local`;
+                         
+                         const statusColor = (p.status.startsWith("Ready") || p.status.startsWith("Working")) ? 'var(--success-color)' : 
+                                            (p.status.startsWith("Error")) ? 'var(--danger-color)' : '#666';
+                         
+                         // Determine Task String
+                         const taskStr = p.task || "Unknown Task";
+
+                         // Time since last update
+                         // If remote: use p.lastProbe (millis from boot). This is hard to sync to absolute time.
+                         // Actually, lastProbe is 'millis()', which is uptime. This does not help browser.
+                         // But we fetch /api/peers constantly. The values there are current.
+                         // We can just say "Updated recently". 
+                         // Wait, for the 'Self' I used Date.now(). For peers, the backend sends `lastProbe` which is uptime.
+                         // Backend should probably not send raw millis, or the UI just ignores it and assumes "Just Now" if online.
+                         // Let's use a simple "Online" or relative time approach.
+                         
+                         // Re-reading request: "keep track of the time the value was last updated"
+                         // The browser fetches the list. If the backend says online, it means it saw it recently.
+                         // Let's add a `title` attribute with the Task name and maybe a generic "Last Seen" text.
+                         // Actually, we can assume the data is fresh if the fetch just happened. 
+                         // Let's just put the Task Name in the UI as requested. "before the status".
+                         
+                         return `
                         <div class="tree-node">
-                            <div class="device-node" onclick="window.location.href='http://${p.ip}'" title="Click to open dashboard">
-                                <span style="color:#aaa; font-weight:bold;">${p.hostname}</span>
-                                <span style="margin-left:10px; font-size: 0.8rem; color:${p.online ? '#03dac6' : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
+                            <div class="device-node" onclick="window.location.href='${link}'" title="Task: ${taskStr} | Click to open dashboard" style="${isMe ? 'border:1px solid #333;' : ''}">
+                                <span style="color:${isMe ? 'white':'#aaa'}; font-weight:bold;">${p.hostname}</span>
+                                <span style="margin-left:10px; font-size: 0.8rem; color:#888;">${taskStr}</span>
+                                <span style="margin-left:5px; font-size: 0.8rem; color:${p.online ? statusColor : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
                                 <div style="flex:1"></div>
-                                <span style="color:#444; font-size:0.8rem;">${p.ip}</span>
+                                <span style="color:#444; font-size:0.8rem;">${isMe ? "(This Device)" : p.ip}</span>
                             </div>
                         </div>
-                    `).join('');
+                    `}).join('');
                 }
                 
-                neighborsDiv.innerHTML = html;
+                container.innerHTML = html;
 
             } catch(e) { console.error(e); }
         }

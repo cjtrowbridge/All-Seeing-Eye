@@ -3,6 +3,7 @@
 #include "Config.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 PeerManager& PeerManager::instance() {
     static PeerManager _instance;
@@ -25,11 +26,52 @@ void PeerManager::loop() {
     else if (_peers.empty() && _subnetScanActive) {
         runSubnetScanStep();
     }
+    
+    // 3. Maintenance (Probe known peers for status updates)
+    if (millis() - _lastProbeCheck > 2000) { // Check one peer every 2 seconds
+        _lastProbeCheck = millis();
+        maintainPeers();
+    }
 
     // Scan every 30 seconds
     if (millis() - _lastScan > 30000) {
         _lastScan = millis();
         discover();
+    }
+}
+
+void PeerManager::maintainPeers() {
+    if (_peers.empty()) return;
+
+    // Find the peer that needs probing the most
+    // Criteria: "Unknown" status OR oldest lastProbe
+    int targetIdx = -1;
+    unsigned long oldestTime = millis();
+    
+    for (int i = 0; i < _peers.size(); i++) {
+        if (!_peers[i].online) continue; // Don't spam offline peers? Or maybe do to see if they are back?
+        // Let's stick to online ones for status updates first.
+        
+        // Priority: Status is Unknown
+        if (_peers[i].status == "Unknown") {
+            targetIdx = i;
+            break; // Found high priority
+        }
+        
+        // Otherwise: Oldest probe
+        if (_peers[i].lastProbe < oldestTime) {
+            oldestTime = _peers[i].lastProbe;
+            targetIdx = i;
+        }
+    }
+    
+    // If we found a candidate, and it hasn't been probed effectively recently (e.g. 10 seconds)
+    // Actually, if we use a simple round-robin via timestamps, just probe the chosen one.
+    if (targetIdx >= 0) {
+        // Debounce: If probing happened very recently, skip?
+        // But we enter here every 2s. If we have 10 peers, update rate is 20s. That's fine.
+        Logger::instance().info("Peers", "Probing %s for status...", _peers[targetIdx].ip.c_str());
+        probePeer(_peers[targetIdx].ip);
     }
 }
 
@@ -51,8 +93,8 @@ void PeerManager::processVerificationQueue() {
     _verificationQueue.pop_front();
 
     Logger::instance().info("Peers", "Verifying potential peer: %s", targetIp.c_str());
-    if (verifyPeer(targetIp)) {
-        // Peer added inside verifyPeer if successful
+    if (probePeer(targetIp)) {
+        // Peer added inside probePeer if successful
         Logger::instance().info("Peers", "Verified! Added %s", targetIp.c_str());
     } else {
         // Add to ignore list
@@ -83,7 +125,7 @@ void PeerManager::runSubnetScanStep() {
         // Skip if ignored
         if (!isIgnored(targetStr)) {
             // Logger::instance().info("Peers", "Scanning Subnet: %s", targetStr.c_str()); // Verbose
-            if (verifyPeer(targetStr)) {
+            if (probePeer(targetStr)) {
                 Logger::instance().info("Peers", "Subnet Scan found peer! %s", targetStr.c_str());
                 // We found one! Current requirement says "until it finds one". 
                 // Implicitly, if we find one, the _peers list is not empty, so the loop condition `_peers.empty()` stops this scan.
@@ -104,7 +146,7 @@ void PeerManager::runSubnetScanStep() {
     }
 }
 
-bool PeerManager::verifyPeer(String ip) {
+bool PeerManager::probePeer(String ip) {
     HTTPClient http;
     // Short timeout to not block too long
     http.setTimeout(2000); 
@@ -121,17 +163,38 @@ bool PeerManager::verifyPeer(String ip) {
         if (!error && doc.containsKey("hostname")) {
              // Valid Peer!
              String pHostname = doc["hostname"].as<String>();
-             String pCluster = doc["clusterName"] | "Default"; // Assuming API returns clusterName
-             
-             // Add to list
-             Peer p;
-             p.hostname = pHostname;
-             p.ip = ip;
-             p.cluster = pCluster;
-             p.status = doc["status"] | "Unknown";
-             p.online = true;
-             p.lastSeen = millis();
-             _peers.push_back(p);
+             String pCluster = doc["clusterName"] | "Default"; 
+             String pStatus = doc["status"] | "Unknown";
+             String pTask = doc["task"] | "Unknown Task";
+
+             // Check if exists
+             bool found = false;
+             for(auto& peer : _peers) {
+                 if(peer.ip == ip) {
+                     peer.hostname = pHostname;
+                     peer.cluster = pCluster;
+                     peer.status = pStatus;
+                     peer.task = pTask;
+                     peer.online = true;
+                     peer.lastSeen = millis();
+                     peer.lastProbe = millis();
+                     found = true;
+                     break;
+                 }
+             }
+
+             if(!found) {
+                 Peer p;
+                 p.hostname = pHostname;
+                 p.ip = ip;
+                 p.cluster = pCluster;
+                 p.status = pStatus;
+                 p.task = pTask;
+                 p.online = true;
+                 p.lastSeen = millis();
+                 p.lastProbe = millis();
+                 _peers.push_back(p);
+             }
              
              http.end();
              return true;
@@ -237,6 +300,8 @@ String PeerManager::getPeersAsJson() {
         obj["ip"] = p.ip;
         obj["cluster"] = p.cluster;
         obj["status"] = p.status;
+        obj["task"] = p.task;
+        obj["lastProbe"] = p.lastProbe;
         
         // Mark as offline if not seen in 2 minutes (scans happen every 30s)
         bool isOnline = (millis() - p.lastSeen < 120000);

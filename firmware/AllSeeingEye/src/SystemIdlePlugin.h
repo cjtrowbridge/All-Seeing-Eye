@@ -27,9 +27,9 @@ public:
     String getName() override {
         return "SystemIdle";
     }
-    
-    String getDescription() override {
-        return "Does nothing. Low power standby.";
+
+    String getTaskName() override {
+        return "Independent Exploration";
     }
 };
 

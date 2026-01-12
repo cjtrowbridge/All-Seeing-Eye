@@ -1,4 +1,6 @@
 #include "src/Kernel.h"
+#include <WiFi.h>
+#include <HTTPClient.h>
 
 // Note: OTA Logic is temporarily removed during the restructure. 
 // We will reintegrate it into the Kernel/WebServer in Phase 2/3.

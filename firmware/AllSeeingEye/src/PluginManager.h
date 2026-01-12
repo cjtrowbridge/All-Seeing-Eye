@@ -3,6 +3,8 @@
 
 #include "ASEPlugin.h"
 #include <vector>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 class PluginManager {
 public:
@@ -17,6 +19,7 @@ public:
     // Accessors
     ASEPlugin* getActivePlugin();
     String getActivePluginName();
+    String getActiveTaskName(); // New helper
 
 private:
     PluginManager();

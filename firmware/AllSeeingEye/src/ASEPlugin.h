@@ -15,6 +15,7 @@ public:
 
     // Metadata
     virtual String getName() = 0;
+    virtual String getTaskName() { return "Unknown Task"; } // Default task name
     virtual String getDescription() { return ""; }
     virtual String getVersion() { return "1.0.0"; }
 
