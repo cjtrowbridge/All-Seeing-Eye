@@ -20,6 +20,15 @@ if not exist "!CLI_PATH!" (
 set "FQBN=esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,USBMode=hwcdc,FlashMode=qio,PartitionScheme=app3M_fat9M_16MB"
 set "SKETCH_DIR=%~dp0AllSeeingEye"
 
+:: 2.5 EMBED WEB ASSETS
+echo.
+echo [INFO] Packing Web Assets...
+python "%~dp0pack_web.py"
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Web packing failed.
+    exit /b 1
+)
+
 echo.
 echo [INFO] Compiling sketch...
 echo Board: !FQBN!

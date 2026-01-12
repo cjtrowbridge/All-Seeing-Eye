@@ -1,10 +1,19 @@
 #include "Kernel.h"
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+#include "LittleFS.h"
+#include "Config.h"
 #include "Logger.h"
-#include "RingBuffer.h" 
+#include "HAL.h"
+#include "PeerManager.h"
+#include <ESPmDNS.h>
+#include "RingBuffer.h"
 #include "PluginManager.h"
 #include "SystemIdlePlugin.h"
+
+// Plugin Includes
 #include "RadioTestPlugin.h"
-#include <ArduinoOTA.h>
+
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
 
@@ -29,10 +38,13 @@ void Kernel::setup() {
     // 2. Hardware POST
     if (!HAL::instance().checkRadio()) {
         HAL::instance().setLed(255, 0, 0); // Red (Failure)
-        Logger::instance().error("Kernel", "Critical Hardware Failure!");
-        while(1) delay(1000);
+        Logger::instance().error("Kernel", "Critical Hardware Failure! Radio Missing.");
+        _hardwareHealthy = false;
+        // We continue anyway so the Web Interface is accessible to report the error
+    } else {
+        _hardwareHealthy = true;
     }
-
+    
     // 3. File System
     setupLittleFS();
 
@@ -50,6 +62,9 @@ void Kernel::setup() {
     // 7. Web Server
     WebServerManager::instance().begin();
 
+    // 7.5 Peer Manager
+    PeerManager::instance().begin();
+
     // 8. Start Plugin Task (Core 1)
     xTaskCreatePinnedToCore(
         pluginTask,   // Function
@@ -62,15 +77,22 @@ void Kernel::setup() {
     );
 
     // 9. Load Default Plugin
-    PluginManager::instance().loadPlugin(&radioPlugin);
+    // Radio POST passed (Step 2), so we default to Idle.
+    PluginManager::instance().loadPlugin(&idlePlugin);
 
-    HAL::instance().setLed(128, 0, 128); // Purple (Ready)
+    if (_hardwareHealthy) {
+        HAL::instance().setLed(128, 0, 128); // Purple (Ready)
+    } else {
+        HAL::instance().setLed(255, 0, 0); // Keep Red (Error)
+    }
+
     Logger::instance().info("Kernel", "System Ready. All-Seeing Eye is open.");
 }
 
 void Kernel::loop() {
     // Core 0 Maintenance Loop
     ArduinoOTA.handle();
+    PeerManager::instance().loop(); // Handle Discovery
 
     // WiFi handling, OTA, etc implicitly handled by events
     // We can add watchdog or status logging here
@@ -92,6 +114,10 @@ void Kernel::setupLittleFS() {
 }
 
 void Kernel::setupWiFi() {
+    String hostname = Config::instance().getHostname();
+    Logger::instance().info("Kernel", "Setting Hostname: %s", hostname.c_str());
+    WiFi.setHostname(hostname.c_str());
+
     Logger::instance().info("Kernel", "Connecting to WiFi...");
     WiFi.mode(WIFI_STA);
 
@@ -139,6 +165,19 @@ void Kernel::setupWiFi() {
     
     if (connected) {
         Logger::instance().info("Kernel", "WiFi Connected. IP: %s", WiFi.localIP().toString().c_str());
+
+        // Setup mDNS
+        if (MDNS.begin(hostname.c_str())) {
+            Logger::instance().info("Kernel", "mDNS responder started: %s.local", hostname.c_str());
+            MDNS.addService("allseeingeye", "tcp", 80);
+            
+            // Advertise Cluster Name
+            String clusterName = Config::instance().getString("cluster", "Default");
+            MDNS.addServiceTxt("allseeingeye", "tcp", "cluster", clusterName);
+        } else {
+            Logger::instance().error("Kernel", "Error setting up mDNS responder!");
+        }
+
     } else {
         Logger::instance().error("Kernel", "WiFi Connection FAILED. Starting AP Mode...");
         WiFi.softAP("AllSeeingEye-Recovery");
@@ -205,6 +244,9 @@ void Kernel::getStatus(JsonObject& doc) {
     doc["rb_size"] = RingBuffer::instance().capacity();
     doc["rb_available"] = RingBuffer::instance().available();
         
+    // Cluster Name (Optional in future config)
+    doc["clusterName"] = Config::instance().getString("cluster", "Default");
+
     String response;
     serializeJson(doc, response);
     Logger::instance().info("Kernel", "Status: %s", response.c_str());

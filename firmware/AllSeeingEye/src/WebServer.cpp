@@ -1,9 +1,11 @@
 #include "WebServer.h"
 #include <LittleFS.h>
+#include "WebStatic.h" // Include generated HTML header
 #include "Kernel.h" // For status access
 #include "Logger.h" // Add Logger
 #include "RingBuffer.h" // Add RingBuffer
 #include "PluginManager.h" // Add PluginManager
+#include "PeerManager.h" // Add PeerManager
 #include "AsyncJson.h" 
 #include <ArduinoJson.h>
 
@@ -30,13 +32,33 @@ void WebServerManager::setupRoutes() {
         JsonDocument doc;
         doc["uptime"] = millis();
         doc["heap_free"] = ESP.getFreeHeap();
+        doc["heap_size"] = ESP.getHeapSize(); // Added for % calc
         doc["psram_free"] = ESP.getFreePsram();
+        doc["psram_size"] = ESP.getPsramSize();
         doc["flash_size"] = ESP.getFlashChipSize();
+
+        doc["hostname"] = Config::instance().getHostname();
         
         doc["rb_capacity"] = RingBuffer::instance().capacity();
         doc["rb_usage"] = RingBuffer::instance().available();
 
         doc["plugin"] = PluginManager::instance().getActivePluginName();
+
+        // Calculate System Status
+        String statusMsg = "Ready";
+        if (!Kernel::instance().isHardwareHealthy()) {
+            statusMsg = "Radio Problem: Failed To POST";
+        } else {
+            String pName = PluginManager::instance().getActivePluginName();
+            if (pName == "SystemIdle") {
+                statusMsg = "Ready";
+            } else if (pName == "RadioTest") {
+                statusMsg = "Working: Hardware Verification";
+            } else {
+                 statusMsg = "Working: " + pName;
+            }
+        }
+        doc["status"] = statusMsg;
 
         String response;
         serializeJson(doc, response);
@@ -82,6 +104,33 @@ void WebServerManager::setupRoutes() {
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response);
+    });
+
+    // API: Peers (Discovery)
+    _server.on("/api/peers", HTTP_GET, [](AsyncWebServerRequest *request){
+        // Passive Discovery: Check who is calling us
+        PeerManager::instance().trackIncomingRequest(request->client()->remoteIP().toString());
+        
+        String response = PeerManager::instance().getPeersAsJson();
+        request->send(200, "application/json", response);
+    });
+
+    // API: Utils - Ping
+    _server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest *request){
+        if (request->hasParam("target")) {
+            String target = request->getParam("target")->value();
+            bool result = PeerManager::instance().pingHost(target);
+            
+            JsonDocument doc;
+            doc["target"] = target;
+            doc["reachable"] = result;
+            
+            String res;
+            serializeJson(doc, res);
+            request->send(200, "application/json", res);
+        } else {
+            request->send(400, "application/json", "{\"error\":\"Missing 'target' parameter\"}");
+        }
     });
 
     // API: System Logs
@@ -133,13 +182,30 @@ void WebServerManager::setupRoutes() {
         r5["method"] = "GET";
         r5["desc"] = "Get system log buffer";
 
+        JsonObject r6 = routes.add<JsonObject>();
+        r6["path"] = "/api/peers";
+        r6["method"] = "GET";
+        r6["desc"] = "Get discovered peers list";
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response);
     });
 
     // --------------------------------------------------
-    // 3. Static Files (Catch-All fallthrough)
+    // 3. Static Files (Embedded & FS Fallback)
     // --------------------------------------------------
-    _server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+
+    // Serve Embedded index.html (Compressed)
+    auto rootHandler = [](AsyncWebServerRequest *request){
+        AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", index_html_gz, index_html_gz_len);
+        response->addHeader("Content-Encoding", "gzip");
+        request->send(response);
+    };
+    
+    _server.on("/", HTTP_GET, rootHandler);
+    _server.on("/index.html", HTTP_GET, rootHandler);
+
+    // Fallback: Serve other static files from LittleFS (if we add images later)
+    _server.serveStatic("/assets", LittleFS, "/assets");
 }

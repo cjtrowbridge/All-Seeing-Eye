@@ -1,8 +1,10 @@
 #include "Config.h"
+#include <esp_mac.h> 
+
 // #include "../secrets.example.h" // Removed to prevent linker collision
 // Note: We use the secrets.h at runtime if available via other means, 
 // but here we just implementation Preferences for persistent storage.
-// Initial defaults might come from secrets.
+// Initial defaults might come from secrets.h.
 
 Config& Config::instance() {
     static Config _instance;
@@ -32,7 +34,22 @@ void Config::setWifi(String ssid, String pass) {
 }
 
 String Config::getHostname() {
-    return _prefs.getString("hostname", "AllSeeingEye");
+    String stored = _prefs.getString("hostname", "");
+    
+    // If user has a custom hostname, use it.
+    // If it's empty or the old default "AllSeeingEye", generate a unique one.
+    if (stored.length() > 0 && stored != "AllSeeingEye") {
+        return stored;
+    }
+
+    // Generate Unique Default: allseeingeye-a1b2c3
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    
+    char hostname[32];
+    snprintf(hostname, sizeof(hostname), "allseeingeye-%02x%02x%02x", mac[3], mac[4], mac[5]);
+    
+    return String(hostname);
 }
 
 void Config::setHostname(String hostname) {
@@ -66,8 +83,11 @@ String Config::getAllAsJson() {
     // We do NOT export the password for security, or we mask it
     doc["pass"] = "******"; 
     
-    // Add other future settings here (Plugin defaults, etc)
-    // doc["defaultPlugin"] = getString("defPlugin", "RSSIScanner");
+    // Cluster Config
+    doc["cluster"] = getString("cluster", "Default");
+    
+    // Peer Discovery
+    doc["peer_ignore_hours"] = getInt("peer_ignore_hours", 12);
 
     String output;
     serializeJson(doc, output);
@@ -97,6 +117,16 @@ bool Config::updateFromJson(String jsonBody) {
     // Update Hostname
     if (doc.containsKey("hostname")) {
         setString("hostname", doc["hostname"].as<String>());
+    }
+
+    // Update Cluster
+    if (doc.containsKey("cluster")) {
+        setString("cluster", doc["cluster"].as<String>());
+    }
+
+    // Peer Discovery
+    if (doc.containsKey("peer_ignore_hours")) {
+        setInt("peer_ignore_hours", doc["peer_ignore_hours"].as<int>());
     }
 
     return true;

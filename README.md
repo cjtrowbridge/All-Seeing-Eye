@@ -23,6 +23,8 @@ By correlating RSSI bitmaps from multiple perspectives, the system can simultane
 
 This design document focuses on the **All-Seeing Eye Node** as a physical and conceptual artifact within this broader architecture.
 
+This project is intended to operate as a **VLBI (Very Long Baseline Interferometry) Cluster**. While individual nodes provide utility, the core value proposition is the synchronized collaboration of multiple distributed nodes to triangulate signals and build high-fidelity spectrum maps.
+
 ---
 
 ## 2. Naming Decisions

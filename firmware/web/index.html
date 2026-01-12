@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> ✨👁✨ All-Seeing Eye</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #bb86fc;
+            --danger-color: #cf6679;
+            --success-color: #03dac6;
+            --border-color: #333;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto auto; /* Header, Main, Controls, Footer */
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--panel-color);
+            padding: 0 20px;
+            height: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        h1 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; font-weight: 500; letter-spacing: 1px; }
+        .status-badge {
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+        .status-badge.active { color: var(--bg-color); background: var(--success-color); font-weight: bold; }
+        
+        main {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #log-panel {
+            flex: 1;
+            padding: 10px 20px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #ccc;
+            border-bottom: 1px solid var(--border-color);
+            background: #141414;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+        .log-time { color: #666; margin-right: 8px; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: #1a1a1a;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #888;
+            border-right: 1px solid #222;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        .tab-btn:hover { background: #222; color: #fff; }
+        .tab-btn.active {
+            background: #252525;
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            padding: 20px;
+        }
+        .tab-content.active { display: block; }
+        
+        #tab-logs { padding: 0; display: flex; flex-direction: column; }
+        #log-list { flex: 1; padding: 10px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.85rem; color: #ccc; }
+
+        /* Persistent Viz Panel */
+        #viz-panel {
+            height: 200px; /* Fixed height for persistent visualization */
+            background: #000;
+            position: relative;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        #spectrum-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Controls moved to Task View */
+        .controls-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: #222;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        input, select {
+            background: #111;
+            border: 1px solid #444;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+        button { 
+            background: var(--accent-color); 
+            color: black; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            margin-top: auto; 
+        }
+        button:hover { opacity: 0.9; }
+
+        footer {
+            background: #0e0e0e;
+            padding: 5px 20px;
+            font-size: 0.75rem;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-item { margin-right: 15px; }
+        .stat-val { color: #888; margin-left: 5px; }
+        
+        /* Tree View for Clusters */
+        .tree-node { margin-left: 20px; padding: 5px 0; }
+        .cluster-root { font-weight: bold; color: var(--success-color); margin-bottom: 5px; }
+        .device-node { color: #aaa; display: flex; gap: 10px; padding: 5px; background: #1a1a1a; margin-bottom: 2px; border-radius: 4px; }
+        .device-node:hover { background: #333; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>
+            <span>✨👁️✨</span> All-Seeing Eye 
+            <span id="connection-status" class="status-badge">DISCONNECTED</span>
+            <span id="cluster-status" style="font-size: 0.8rem; color: #888; font-weight: normal; margin-left: 10px;">
+                ✨ Current Cluster: Default ✨ Working On: Idle ✨
+            </span>
+        </h1>
+    </header>
+
+    <main>
+        <!-- Tabs Header -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('clusters')">Clusters</button>
+            <button class="tab-btn" onclick="switchTab('task')">Task View</button>
+            <button class="tab-btn" onclick="switchTab('logs')">Logs</button>
+        </div>
+
+        <!-- Tab Content: Clusters -->
+        <div id="tab-clusters" class="tab-content active">
+            <div id="cluster-tree">
+                <div class="cluster-root">Default Cluster (Local)</div>
+                <div class="tree-node">
+                    <div class="device-node">
+                        <span id="device-hostname" style="color:white; font-weight:bold;">Loading...</span>
+                        <span id="device-status" style="margin-left:10px; font-size: 0.8rem;">...</span>
+                        <div style="flex:1"></div>
+                        <span style="color:#666; font-size:0.8rem;">(This Device)</span>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:20px; color:#666; font-size:0.8rem; text-align:center;">
+                Scanning for peers via mDNS every 30s...
+            </div>
+        </div>
+
+        <!-- Tab Content: Task View -->
+        <div id="tab-task" class="tab-content">
+            <h3 style="margin-top:0">Current Task</h3>
+            <div class="controls-container">
+                <div class="control-group">
+                    <label>Mode</label>
+                    <select id="mode-select">
+                        <option value="IDLE">Idle</option>
+                        <option value="SCANNER">Scanner</option>
+                        <option value="MONITOR">Single Freq</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Frequency (MHz)</label>
+                    <input type="number" id="freq-input" value="915.0" step="0.1" style="width: 100px;">
+                </div>
+                <button id="apply-btn">APPLY CONFIG</button>
+            </div>
+            
+            <div style="margin-top:20px; padding:15px; background:#1a1a1a; border-radius:4px;">
+                <strong>Cluster Strategy:</strong> Independent<br>
+                <small style="color:#888;">This node is currently operating independently. Join a managed cluster to synchronize tasks.</small>
+            </div>
+        </div>
+
+        <!-- Tab Content: Logs -->
+        <div id="tab-logs" class="tab-content" style="display:none;"> <!-- Note: display handled by JS, but inline style helps initial flash -->
+            <div id="log-list">
+                <div style="text-align:center; color:#444; margin-top:20px;">Waiting for logs...</div>
+            </div>
+        </div>
+        
+        <!-- Persistent Viz -->
+        <div id="viz-panel">
+            <canvas id="spectrum-canvas"></canvas>
+        </div>
+    </main>
+
+
+    <footer>
+        <span class="stat-item">RAM: <span id="stat-ram" class="stat-val">--</span></span>
+        <span class="stat-item">UPTIME: <span id="stat-uptime" class="stat-val">--</span></span>
+        <span class="stat-item">PLUGIN: <span id="stat-plugin" class="stat-val">--</span></span>
+        <span style="flex:1"></span>
+        <span id="stat-version" style="opacity:0.5">v1.0</span>
+    </footer>
+
+    <script>
+        // Tab Switcher
+        function switchTab(tabId) {
+            // Hide all
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.style.display = 'none';
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            // Show One
+            const content = document.getElementById('tab-' + tabId);
+            content.style.display = (tabId === 'logs') ? 'flex' : 'block'; // Logs needs flex for scroll
+            content.classList.add('active');
+            
+            // Highlight Btn (Find by onclick attr matching... crude but works for simple app)
+            // Or better, stick to index? Let's just Loop.
+            const btns = document.querySelectorAll('.tab-btn');
+            if(tabId === 'clusters') btns[0].classList.add('active');
+            if(tabId === 'task') btns[1].classList.add('active');
+            if(tabId === 'logs') btns[2].classList.add('active');
+        }
+
+        // State
+        const IP = window.location.hostname === "localhost" ? "allseeingeye.local" : window.location.hostname;
+        
+        const canvas = document.getElementById('spectrum-canvas');
+        const ctx = canvas.getContext('2d');
+        const logBox = document.getElementById('log-list');
+        
+        // Resize Canvas
+        function resize() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resize);
+        // Delay initial resize to ensure layout is done
+        setTimeout(resize, 100);
+
+        // Polling Status
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                // RAM Percentage
+                let ramText = Math.round(data.heap_free/1024) + "k";
+                if(data.heap_size) {
+                    const pct = Math.round(((data.heap_size - data.heap_free) / data.heap_size) * 100);
+                    ramText = pct + "% (" + ramText + " free)";
+                }
+
+                document.getElementById('stat-ram').innerText = ramText;
+                document.getElementById('stat-uptime').innerText = Math.round(data.uptime/1000) + "s";
+                document.getElementById('stat-plugin').innerText = data.plugin || "None";
+                
+                // Update Hostname in Cluster View
+                if(data.hostname) {
+                    document.getElementById('device-hostname').innerText = data.hostname + ".local";
+                }
+
+                // Update Status in Cluster View
+                const statusSpan = document.getElementById('device-status');
+                if(data.status) {
+                    statusSpan.innerText = "[" + data.status + "]";
+                    
+                    // Simple text matching for color
+                    if (data.status.startsWith("Ready") || data.status.startsWith("Working")) {
+                        statusSpan.style.color = "var(--success-color)";
+                    } else {
+                        statusSpan.style.color = "var(--danger-color)"; // Red for errors
+                    }
+                }
+
+                document.getElementById('connection-status').innerText = "ONLINE";
+                document.getElementById('connection-status').classList.add('active');
+
+                // Mock Cluster Status update (backend not ready yet)
+                // In future: data.clusterName and data.clusterTask
+                const taskDesc = (data.plugin === "Scanner") ? "Broadband Sweep (Custom) ✨" 
+                               : (data.plugin === "RadioTest") ? "Hardware Verification ✨"
+                               : (data.plugin === "SystemIdle") ? "Searching for cluster friends 👀"
+                               : "Idle ✨";
+                
+                document.getElementById('cluster-status').innerText = 
+                    `Current Cluster: ${data.clusterName || "Default"} ✨ Working On: ${taskDesc}`;
+
+                // Trigger Peer Refresh
+                fetchPeers();
+
+            } catch(e) {
+                document.getElementById('connection-status').innerText = "OFFLINE";
+                document.getElementById('connection-status').classList.remove('active');
+            }
+        }
+        setInterval(fetchStatus, 2000);
+        fetchStatus();
+
+        // Fetch Peers
+        async function fetchPeers() {
+            try {
+                const res = await fetch('/api/peers');
+                const peers = await res.json();
+                
+                let neighborsDiv = document.getElementById('neighbors-list');
+                if(!neighborsDiv) {
+                    const container = document.getElementById('cluster-tree');
+                    neighborsDiv = document.createElement('div');
+                    neighborsDiv.id = 'neighbors-list'; // Container for external peers
+                    container.appendChild(neighborsDiv);
+                }
+                
+                if(peers.length === 0) {
+                    neighborsDiv.innerHTML = "<div style='text-align:center;color:#444;margin-top:10px;font-size:0.8rem;'>No peers detected</div>";
+                    return;
+                }
+                
+                // Group by Cluster
+                const clusters = {};
+                peers.forEach(p => {
+                    const c = p.cluster || "Unknown";
+                    if(!clusters[c]) clusters[c] = [];
+                    clusters[c].push(p);
+                });
+                
+                // Build HTML
+                let html = "";
+                for (const [cName, cPeers] of Object.entries(clusters)) {
+                    // Differentiate visual style for discovered clusters
+                    html += `<div class="cluster-root" style="margin-top:15px; color:#bb86fc;">Cluster: ${cName}</div>`;
+                    html += cPeers.map(p => `
+                        <div class="tree-node">
+                            <div class="device-node" onclick="window.location.href='http://${p.ip}'" title="Click to open dashboard">
+                                <span style="color:#aaa; font-weight:bold;">${p.hostname}</span>
+                                <span style="margin-left:10px; font-size: 0.8rem; color:${p.online ? '#03dac6' : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
+                                <div style="flex:1"></div>
+                                <span style="color:#444; font-size:0.8rem;">${p.ip}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                neighborsDiv.innerHTML = html;
+
+            } catch(e) { console.error(e); }
+        }
+
+        // Polling Logs
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const logs = await res.json();
+                
+                if(logs.length > 0) {
+                     // Simple diff or rebuild? Rebuild for now, it's cheap for small lists
+                     // Show last 50
+                     const slice = logs.slice(Math.max(logs.length - 50, 0));
+                     logBox.innerHTML = slice.map(l => `<div class="log-entry">${l}</div>`).join('');
+                     // Auto scroll to bottom
+                     logBox.scrollTop = logBox.scrollHeight;
+                }
+            } catch(e) { /* ignore */ }
+        }
+        setInterval(fetchLogs, 1000);
+
+        // Dummy Viz
+        function drawPattern() {
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#03dac6';
+            const h = canvas.height;
+            const w = canvas.width;
+            
+            // Draw grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let x=0; x<w; x+=50) { ctx.moveTo(x,0); ctx.lineTo(x,h); }
+            ctx.stroke();
+
+            for(let i=0; i<w; i+=10) {
+                const noise = Math.random() * (h * 0.8);
+                ctx.fillRect(i, h - noise, 8, noise);
+            }
+            requestAnimationFrame(drawPattern);
+        }
+        drawPattern();
+
+        // Init Tab
+        switchTab('clusters');
+    </script>
+</body>
+</html>

@@ -18,9 +18,11 @@ public:
     
     // Status reporting
     void getStatus(JsonObject& doc);
+    bool isHardwareHealthy() { return _hardwareHealthy; }
 
 private:
     Kernel();
+    bool _hardwareHealthy = true;
     
     void setupLittleFS();
     void setupWiFi();
