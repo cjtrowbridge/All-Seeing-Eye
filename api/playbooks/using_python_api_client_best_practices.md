@@ -27,6 +27,11 @@ To ensure that all Python scripts interacting with the cluster are robust, handl
     *   The API returns strings for most values to be safe.
     *   Always cast `int(rssi)` before math.
 
+5.  **Handling Errors Gracefully**
+    *   **Verbose Logging**: If a request fails, print the full response body. The firmware is designed to return "Self-Correcting" error messages containing valid usage examples.
+    *   **Retries**: Implement exponential backoff for network timeouts, but **fail fast** on HTTP 400 (Bad Request) unless the error message suggests a specific fix.
+    *   **Validation**: Validate payloads against known schemas in the Python client *before* sending them to the wire.
+
 ## Example Pattern
 
 ```python

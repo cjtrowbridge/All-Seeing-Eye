@@ -25,9 +25,17 @@ This design document focuses on the **All-Seeing Eye Node** as a physical and co
 
 This project is intended to operate as a **VLBI (Very Long Baseline Interferometry) Cluster**. While individual nodes provide utility, the core value proposition is the synchronized collaboration of multiple distributed nodes to triangulate signals and build high-fidelity spectrum maps.
 
+## 2. Regulatory & Operational Posture
+
+**PASSIVE OBSERVATION ONLY**:
+The "All-Seeing Eye" is designed exclusively as a **Passive Reception Device**. 
+*   The default firmware strictly disables any transmission capabilities on the CC1101 radio to ensure compliance with local RF regulations (FCC/CE). 
+*   The device listens, measures, and reports. It never transmits, jams, or interferes.
+*   *Note: While the hardware supports TX, enabling it requires manual firmware modification by the user, who assumes all legal liability.*
+
 ---
 
-## 2. Naming Decisions
+## 3. Naming Decisions
 
 * **All-Seeing Eye** — distributed RF observer
 
@@ -35,18 +43,18 @@ The term *All-Seeing Eye* is used **literally and technically**, describing emer
 
 ---
 
-## 3. Physical Design Specifications (Prototype)
+## 4. Physical Design Specifications (Prototype)
 
 For the initial prototype, the enclosure must meet the following precise physical specifications to be modeled in 3D:
 
-### 3.1 Base Geometry
+### 4.1 Base Geometry
 *   **Structure**: A hollow square prism.
 *   **Dimensions**: 8 inches x 8 inches (Outer footprint) - *Updated from 4" in v1.1*.
 *   **Height**: 0.5 inches.
 *   **Wall Thickness**: 0.25 inches.
 *   **Notes**: This forms the foundation upon which the pyramid sits.
 
-### 3.2 Pyramid Geometry
+### 4.2 Pyramid Geometry
 *   **Structure**: A hollow 4-sided pyramid sitting directly atop the base.
 *   **Material Compatibility**: The shell must be printed in **Semi-Transparent** material (PETG/PLA) to allow internal LED diffuse lighting to be visible externally without physical apertures.
 *   **Slope**: Faces must be angled at 45 degrees.
@@ -55,7 +63,7 @@ For the initial prototype, the enclosure must meet the following precise physica
 *   **Top**: Truncated flat top.
     *   The flat top accommodates a central SMA connector hole.
 
-### 3.3 Base Plate (Bottom Lid)
+### 4.3 Base Plate (Bottom Lid)
 *   **System**: A separate 0.25" thick plate that snaps into the bottom of the shell.
 *   **Alignment**: Includes four corner alignment tabs (triangles) that fit inside the shell walls.
 *   **Latching Mechanism**: Magnetic Latch System.
@@ -65,11 +73,11 @@ For the initial prototype, the enclosure must meet the following precise physica
     *   **Lid Side**: Alignment tabs hold magnets facing up.
     *   **Superglue**: Magnets are secured in their recesses with superglue or epoxy.
 
-### 3.4 Clearances
+### 4.4 Clearances
 *   The entire assembly is hollow.
 *   Internal thickness of walls is consistent (0.25 inch).
 
-### 3.5 Eye Symbol (Attachment)
+### 4.5 Eye Symbol (Attachment)
 *   **Design**: A separate visual artifact attached to the front face.
 *   **Style**: Minimalist "All-Seeing Eye" (Almond shape + Pupil).
 *   **Dimensions**: 3 inches wide x 1.75 inches tall.
@@ -77,16 +85,16 @@ For the initial prototype, the enclosure must meet the following precise physica
 
 ---
 
-## 4. Connectivity & Interface Layout
+## 5. Connectivity & Interface Layout
 
 The connector ports are distributed across the faces of the **Base Prism** and the **Pyramid Top**.
 
-### 4.1 Top Interface (Pyramid Apex)
+### 5.1 Top Interface (Pyramid Apex)
 *   **Connector**: VNA / Sensing SMA.
 *   **Placement**: Centered on the flat, truncated top of the pyramid.
 *   **Requirements**: Through-hole sized for standard SMA bulkhead. Clearance for cable attachment.
 
-### 4.2 Base Interfaces
+### 5.2 Base Interfaces
 The base prism has four faces. The layout is as follows:
 
 *   **Front Face**: 
@@ -105,7 +113,7 @@ This layout separates sensing from networking both **electrically and visually**
 
 ---
 
-## 5. Lighting Design
+## 6. Lighting Design
 
 Lighting is used to convey **latent awareness**, not alerts or activity.
 
@@ -125,7 +133,7 @@ Lighting behavior is slow, restrained, and continuous, reinforcing the sense tha
 
 ---
 
-## 6. Optional Hardware Components
+## 7. Optional Hardware Components
 
 While the core functionality is provided by the ESP32 and CC1101, additional modules can establish the node as a precise reference point in the VLBI network.
 
@@ -137,11 +145,11 @@ While the core functionality is provided by the ESP32 and CC1101, additional mod
 
 ---
 
-## 7. Geolocation Techniques
+## 8. Geolocation Techniques
 
 This section details methods for determining the positions of dispersed nodes.
 
-### 7.1 Native Approach (No GPS)
+### 8.1 Native Approach (No GPS)
 This method utilizes the core ESP32+CC1101 hardware to estimate location without dedicated GPS modules. It relies on a "Spring-Mass" or "Elastic Map" concept.
 
 **1. Relative Positioning (Multidimensional Scaling)**
@@ -161,19 +169,19 @@ This method utilizes the core ESP32+CC1101 hardware to estimate location without
 *   RSSI is easily distorted by obstacles (multipath fading), which can warp the calculated geometry.
 *   WiFi geolocation depends entirely on the density of known networks in the area.
 
-### 7.2 Precision Approach (GPS)
+### 8.2 Precision Approach (GPS)
 The preferred alternative is installing the optional **GY-NEO6MV2 GPS Module** (see Section 6).
 *   **Accuracy**: +/- 2.5m (Absolute).
 *   **Reliability**: Independent of WiFi availability and unaffected by RF multipath distortion.
 
-### 7.3 Role of the Single RTL-SDR
+### 8.3 Role of the Single RTL-SDR
 While a single RTL-SDR node cannot perform Time Difference of Arrival (TDOA) multilateration (which requires 3+ synchronized anchors), it plays a support role:
 *   **Calibration**: Use the SDR to monitor transmission power of the nodes, normalizing "hot" transmitters that would otherwise skew RSSI distance calculations.
 *   **Pseudo-Doppler (Advanced)**: With a custom antenna-switching add-on, the single SDR can perform Direction Finding to determine the Angle of Arrival (AoA), adding bearing lines to the location solution.
 
 ---
 
-### 7.4 VLBI / TDOA Possibilities (Future Scope)
+### 8.4 VLBI / TDOA Possibilities (Future Scope)
 While the current prototype focuses on RSSI, the project name "All-Seeing Eye" references **VLBI (Very Long Baseline Interferometry)** concepts.
 
 *   **TDOA Viability**: Time Difference of Arrival (TDOA) requires extremely precise nanosecond-level clock synchronization across nodes.
@@ -183,7 +191,7 @@ While the current prototype focuses on RSSI, the project name "All-Seeing Eye" r
     *   **GPS PPS**: Adding the **GPS Module (Section 6)** provides a **Pulse Per Second (PPS)** signal. This can discipline the local clocks to within microsecond accuracy.
     *   **Feasibility**: With GPS-disciplined timestamps, TDOA could potentially resolve location to within ~300 meters (1 microsecond = ~300m light travel time). This allows for "City-Scale" triangulation of powerful signal sources, staying true to the VLBI inspiration despite the lack of phase coherence.
 
-### 7.5 Mesh-Assisted Localization (Opportunistic)
+### 8.5 Mesh-Assisted Localization (Opportunistic)
 If the node is operating within an active Meshtastic mesh, it can utilize traffic from *other* nodes to determine its own location.
 
 *   **Mechanism**: The node listens for position packets from nearby Meshtastic nodes that *do* have GPS fixes.
@@ -193,7 +201,7 @@ If the node is operating within an active Meshtastic mesh, it can utilize traffi
 
 ---
 
-## 8. Overall Intent
+## 9. Overall Intent
 
 The All-Seeing Eye Node is designed as:
 
@@ -207,7 +215,7 @@ The object is meant to feel present, inevitable, and quietly capable — somethi
 
 ---
 
-## 9. Locked Concepts
+## 10. Locked Concepts
 
 * **Names**: SDR Node, All-Seeing Eye Node, All-Seeing Eye View
 * **Form**: Pyramidal structure on a raised square base.
@@ -216,7 +224,7 @@ The object is meant to feel present, inevitable, and quietly capable — somethi
 
 ---
 
-## 10. Fabrication & Build Pipeline
+## 11. Fabrication & Build Pipeline
 
 The physical enclosure is designed programmatically using **OpenSCAD**. This ensures that all dimensions, clearances, and tolerances can be adjusted parametrically and versioned as code.
 
@@ -283,7 +291,7 @@ To generate the STL files for printing:
 
 ---
 
-## 11. Wiring Guide (ESP32-S3 N16R8)
+## 12. Wiring Guide (ESP32-S3 N16R8)
 
 The system uses an **ESP32-S3-WROOM-1 N16R8** development board. This board has a different pinout than the classic ESP32.
 
@@ -309,7 +317,7 @@ The recommended wiring uses the **Left Header** almost exclusively to keep cabli
 
 ---
 
-## 12. Version History & Development Log
+## 13. Version History & Development Log
 
 This section documents the iterative design process from initial concept to the current printable shell.
 

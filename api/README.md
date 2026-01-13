@@ -32,6 +32,30 @@ The All Seeing Eye nodes expose a RESTful JSON API for status monitoring, config
    python check_cluster.py
    ```
 
+## API Standards
+
+### Error Response Format
+All API endpoints must return helpful error messages for 400-series client errors. If a request is malformed (missing fields, wrong types), the server must respond with:
+1.  **Explanation**: What went wrong.
+2.  **Schema**: What a valid request looks like.
+
+**Example 400 Response:**
+```json
+{
+  "status": "error",
+  "message": "Missing required field: 'task_type'",
+  "expected_format": {
+    "task_type": "string",
+    "priority": "int (optional)",
+    "params": {}
+  },
+  "example": {
+    "task_type": "SpectrumScan",
+    "params": { "freq_start": 433.0, "freq_end": 434.0 }
+  }
+}
+```
+
 ## API Reference
 
 (Detailed API endpoint documentation will go here)

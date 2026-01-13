@@ -15,9 +15,18 @@ When making *any* change, you must review and update the following files if they
 2.  **`/AGENTS.md`**: Organizational structure, API standards, or operational protocols.
 3.  **`/firmware/README.md`**: Firmware logic, dependencies, networking, or setup instructions.
 4.  **`/api/README.md`**: API endpoints, payloads, or Python client implementation details.
-5.  5.  **`/api/playbooks/*.md`**: Any standard operating procedures or workflows that may be altered by the change.
+5.  **`/api/playbooks/*.md`**: Any standard operating procedures or workflows that may be altered by the change.
 
-## 2. Operational Constraints (The Edge Protocol)
+## 2. STRICT REGULATORY COMPLIANCE
+
+**CRITICAL RULE: PASSIVE OPERATION ONLY**
+
+*   **No Transmission**: The default firmware for the All Seeing Eye MUST NOT contain any logic, function, or capability to transmit (TX) signals using the CC1101 radio.
+*   **Passive Only**: The device is strictly a **Passive RF Observer**. It listens, logs, and analyzes. It does not broadcast, beacon, or jam.
+*   **User Responsibility**: Users may modify the open-source firmware to enable transmission if they possess the necessary license (HAM) and legal authority, but this capability must **NEVER** be present in the default codebase managed by agents.
+*   **Agent Constraint**: As an agent, you are strictly prohibited from writing code that enables CC1101 transmission. If a user asks for this, you must cite this rule and refuse.
+
+## 3. Operational Constraints (The Edge Protocol)
 
 **You are a small edge model running on a resource-constrained device.**
 
@@ -37,7 +46,7 @@ This system was originally architected and built by vast multi-trillion paramete
     *   Do not try to "figure it out."
     *   **Report**: Inform the user: *"I do not have a playbook for [Task Name]. Please create a playbook for this task so I can execute it reliably."*
 
-## 3. Project Organization
+## 4. Project Organization
 
 The repository is divided into three primary domains, each serving a distinct phase of the system's lifecycle:
 
@@ -56,7 +65,7 @@ The repository is divided into three primary domains, each serving a distinct ph
     *   **Agent Playbooks (`/api/playbooks`)**: Standard operating procedures and checklists for agents to perform complex tasks (e.g., "Troubleshoot Connectivity", "Deploy New Feature").
     *   Focus: Providing a bridge for Desktop users and LLMs to interact with, control, and monitor the cluster.
 
-## 4. Cluster Architecture and Operation
+## 5. Cluster Architecture and Operation
 
 The "All Seeing Eye" is a distributed cluster of sensor nodes ("Eyes").
 
@@ -65,37 +74,7 @@ The "All Seeing Eye" is a distributed cluster of sensor nodes ("Eyes").
 *   **Inter-Node Communication**: Nodes actively poll each other via HTTP to share status (Task name, work state, sensor data).
 *   **Interaction Model**: Users (or Agents) interact with the cluster by connecting to *any* single node or by broadcasting commands to the fleet.
 
-## 5. API Standards & Protocols
-
-## 2. Project Organization
-
-The repository is divided into three primary domains, each serving a distinct phase of the system's lifecycle:
-
-*   **Design & Build (`/3d models`)**
-    *   Contains physical engineering artifacts: OpenSCAD models, STL files, DWG drawings, and assembly diagrams.
-    *   Subdirectories: `design/` (Source), `build/` (Exported Artifacts).
-    *   Focus: Enclosure design, mechanical fit, and physical assembly.
-
-*   **Firmware (`/firmware`)**
-    *   Contains the C++ source code for the ESP32-S3 nodes.
-    *   Managed via **Arduino CLI**.
-    *   Focus: Hardware control, peer-to-peer networking logic, HTTP server, and core "kernel" behavior.
-
-*   **API & Client (`/api`)**
-    *   Contains Python libraries, scripts, and interface documentation.
-    *   **Agent Playbooks (`/api/playbooks`)**: Standard operating procedures and checklists for agents to perform complex tasks (e.g., "Troubleshoot Connectivity", "Deploy New Feature").
-    *   Focus: Providing a bridge for Desktop users and LLMs to interact with, control, and monitor the cluster.
-
-## 3. Cluster Architecture and Operation
-
-The "All Seeing Eye" is a distributed cluster of sensor nodes ("Eyes").
-
-*   **Autonomy**: Each node is capable of independent operation ("Independent Exploration").
-*   **Clustering**: Nodes self-discover on the local network using mDNS (Bonjour). They form a loose mesh, maintaining a registry of peers (`PeerManager`).
-*   **Inter-Node Communication**: Nodes actively poll each other via HTTP to share status (Task name, work state, sensor data).
-*   **Interaction Model**: Users (or Agents) interact with the cluster by connecting to *any* single node or by broadcasting commands to the fleet.
-
-## 4. API Standards & Protocols
+## 6. API Standards & Protocols
 
 To ensure the system remains controllable by highly capable AI agents and automated scripts, strict adherence to the following API standards is required.
 
@@ -117,3 +96,25 @@ When adding a feature (e.g., "Night Mode"):
 2.  **Repo Docs**: specific the endpoint in `/api/README.md`.
 3.  **Python Client**: Add the `set_night_mode()` function to the Python library.
 4.  **Self-Docs**: (Optional but recommended) Update the device's internal API description if dynamic.
+
+### E. Robust Error Handling (Self-Correcting)
+*   **Requirement**: API Error responses (4xx/5xx) must be verbose and educational.
+*   **Structure**: 
+    ```json
+    {
+      "error": "Missing field 'frequency'",
+      "details": "The 'frequency' parameter is required for the 'SpectrumSweep' task.",
+      "usage": {
+          "method": "POST",
+          "endpoint": "/api/queue",
+          "example_payload": {
+              "plugin": "SpectrumSweep",
+              "params": {
+                  "frequency": 915.0,
+                  "bandwidth": 200.0
+              }
+          }
+      }
+    }
+    ```
+*   **Purpose**: Allows an Agent or Developer to self-correct a malformed request without consulting external documentation.
