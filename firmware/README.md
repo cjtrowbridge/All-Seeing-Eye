@@ -72,8 +72,22 @@
 - [x] **Startup Stages**: Implement POST -> Infrastructure -> Startup Queue -> App Loop lifecycle.
 - [ ] **Startup Tasks**:
     - [x] `RadioHardwareTest`: Validate CC1101 SPI.
-    - [ ] `GeolocationScan`: Wi-Fi/Radio fingerprinting.
+    - [ ] `GeolocationScan`:
+        - [ ] **Geolocation Plugin** Looks at different possible approaches and applies confidence over time to build a location fix. Tries to identify evidence of movement or stationarity and report this to apps and plugins that need to know the location and vector of the node in order to do their tasks.
+        - [ ] **Precision Approach (GPS)**:
+             - [ ] If a GPS module is connected, use that.
+        - [ ] **Native Approach (No GPS)**
+             - [ ] **Relative Positioning (MDS)**: Broadcast/Receive packets between nodes in the cluster to build a relative distance map using RSSI.
+             - [ ] **Absolute Anchoring (WiFi)**: Scan nearby Wifi BSSIDs and query Geolocation API (15-30m absolute), then use the RSSI to each node in the cluster to determine the distance and relative position of our nodes versus the BSSIDs in order to locate all of our nodes.
+        - [ ] **VLBI / TDOA (Macroscopic)**:
+             - [ ] If the nodes in the cluster are sufficiently far apart, TDOA may be a feasible approach to triangulate position based on signal arrival times from known broadcast origins (e.g., FM Radio, TV Towers, Cell Towers).
+        - [ ] **Mesh-Assisted Localization**:
+             - [ ] Passive listening for single-hop packets from Meshtastic nodes with GPS.
+             - [ ] RSSI trilateration using path loss models from known anchors.
+             - [ ] The system essentially operates in reverse: instead of using a known location and RSSI from multiple nodes to locate an arbitrary broadcast, we use a known broadcast location and RSSI to precisely locate our own nodes.
     - [ ] `BackgroundNoiseCalibration`: Measure noise floor (replaces Cluster Discovery).
+        - [ ] Sweep all supported bands (315MHz, 433MHz, 868MHz, 915MHz, 928MHz).
+        - [ ] Account for and advise about LNA presence, SWR issues, etc.
 - [ ] **Queue API**:
     - [x] `GET /api/queue`: List pending tasks.
     - [ ] `POST /api/queue`: Add new task.
@@ -81,6 +95,9 @@
 - [ ] **Preemption Logic**: Handling interrupt-priority commands vs background scanning.
 
 ## Phase 6: Telemetry & Peripheral Expansion
+- [ ] **Geolocation Hardware Support**:
+    - [ ] **GPS Module**: UART NMEA parsing (GY-NEO6MV2) for precision anchoring.
+    - [ ] **Mesh GPS**: Active request for coordinates from attached node.
 - [ ] **Hardware Probe**:
     - [ ] **Serial Probe**: Detect attached GPS (NMEA) or Meshtastic node on boot.
     - [ ] **I2C Scanner**: Auto-detect connected environment sensors (Temp, Air Quality, Geiger).
