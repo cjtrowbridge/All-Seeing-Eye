@@ -1,3 +1,5 @@
+ [![License: CC BY-NC-ND 4.0](https://licensebuttons.net/l/by-nc-nd/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+
 # All-Seeing-Eye Design Document
 ![All-Seeing Eye Rendering](assets/images/rendering.jpg)
 
