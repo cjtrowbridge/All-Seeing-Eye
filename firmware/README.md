@@ -88,6 +88,8 @@
     - [ ] `BackgroundNoiseCalibration`: Measure noise floor (replaces Cluster Discovery).
         - [ ] Sweep all supported bands (315MHz, 433MHz, 868MHz, 915MHz, 928MHz).
         - [ ] Account for and advise about LNA presence, SWR issues, etc.
+- [ ] **Operational Tasks**:
+    - [ ] `WiFiBluetoothCensus`: Temporarily disconnects to scan all 2.4GHz devices (Wi-Fi/BT) for RSSI-based triangulation of all devices seen, then reconnects wifi after a specified delay.
 - [ ] **Queue API**:
     - [x] `GET /api/queue`: List pending tasks.
     - [ ] `POST /api/queue`: Add new task.
@@ -104,6 +106,11 @@
 - [ ] **Meshtastic Integration**:
     - [ ] Serial API Client: Send/Receive messages via attached mesh node.
     - [ ] Configurable Channel: "Announce to Public" vs "Private Group".
+    - [ ] **Chat Surveillance & Location**:
+        - [ ] Monitor selected Public/Private channels.
+        - [ ] **Single-Hop**: Geolocate sender via RSSI-trilateration.
+        - [ ] **Multi-Hop**: Estimate distance/vector via Hop Count + Last-Hop neighbor RSSI-trilateration.
+        - [ ] **Topology Mapping**: Use traceroutes to build a map of the mesh web, pinning nodes that report location or where we can locate them via RSSI-trilateration.
 - [ ] **Universal Telemetry Bus**:
     - [ ] Standardized polling for arbitrary sensors.
     - [ ] User-configurable announcement intervals.
@@ -111,8 +118,11 @@
 
 ## Phase 7: Distributed Coordination
 - [ ] **Time Synchronization**: NTP + microsecond-offset tracking for VLBI.
-- [ ] **Sychronized Scanning**: Cluster leader designates frequency sweep windows.
-- [ ] **TDOA/RSSI Triangulation**: Aggregating data from the cluster to locate Tx sources.
+    - [ ] **Multi-Transport Sync**: Support sync via Wi-Fi (NTP/PTP) and Meshtastic/LoRa (Custom Beacon).
+    - [ ] **Latency Compensation**: Measure RTT (Round Trip Time) to compensate for transmission delay/light-speed lag across different mediums.
+    - [ ] **Drift Correction**: Continuous adjustment for local clock drift relative to cluster consensus.
+- [ ] **Sychronized Scanning**: Cluster leader designates frequency sweep windows and satart times, based on precisely synchronized time.
+- [ ] **TDOA/RSSI Triangulation**: Aggregating data from the cluster to locate the sources of many broadcasts seen simultaneously in a sweep.
 
 ## Phase 8: Mesh Parity (Transport Independence)
 - [ ] **Transport Agnosticism**: API, Telemetry, and Cluster Control must function transparently over both Wi-Fi and Meshtastic.
