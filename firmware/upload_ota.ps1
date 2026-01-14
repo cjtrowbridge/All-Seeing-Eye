@@ -41,18 +41,42 @@ $CompileLog = "$BuildDir\compile.log"
 
 # 1. Pack Web Assets
 Write-Host "[1/3] Packing Web Assets..." -ForegroundColor Cyan
-python "$PSScriptRoot\pack_web.py"
+Start-Process python -ArgumentList "`"$PSScriptRoot\pack_web.py`"" -Wait -NoNewWindow
+
+# 1.5 Generate Build ID
+$BuildId = -join ((48..57) + (97..102) | Get-Random -Count 8 | % {[char]$_})
+$HeaderPath = "$SketchDir\src\BuildVersion.h"
+Write-Host "      Generating Build ID: $BuildId -> $HeaderPath" -ForegroundColor Gray
+$HeaderContent = @"
+#ifndef BUILD_VERSION_H
+#define BUILD_VERSION_H
+#define BUILD_ID "$BuildId"
+#endif
+"@
+Set-Content -Path $HeaderPath -Value $HeaderContent
 
 # 2. Compile Firmware
-Write-Host "[2/3] Compiling Firmware..." -ForegroundColor Cyan
+Write-Host "[2/3] Compiling Firmware... (This may take 30-60 seconds)" -ForegroundColor Cyan
+Write-Host "      PLEASE WAIT - DO NOT INTERRUPT" -ForegroundColor Yellow
+
 if (!(Test-Path $BuildDir)) { New-Item -ItemType Directory -Path $BuildDir | Out-Null }
 
 Write-Host "      Logs: $CompileLog" -ForegroundColor Gray
-# Use Start-Process or direct invocation with redirection. 
-# 2>&1 merges stderr to stdout, Tee-Object shows it in console AND writes to file.
-& $CliPath compile --fqbn $Fqbn --build-path $BuildDir --libraries $LibPath $SketchDir 2>&1 | Tee-Object -FilePath $CompileLog
 
-if ($LASTEXITCODE -ne 0) { 
+# Use Start-Process with -Wait to ensure blocking execution
+# We use PassThru to capture the process object and get the ExitCode
+# StdOut and StdErr must be different files to avoid locking contention
+# Outputs
+$BinPath    = "$BuildDir\AllSeeingEye.ino.bin"
+$CompileLog = "$PSScriptRoot\compile.log"
+
+# --- EXECUTION ---
+# Use Start-Process with -Wait to ensure blocking execution
+# We use PassThru to capture the process object and get the ExitCode
+# StdOut and StdErr must be different files to avoid locking contention
+$p = Start-Process -FilePath $CliPath -ArgumentList "compile", "--fqbn", "$Fqbn", "--build-path", "`"$BuildDir`"", "--libraries", "`"$LibPath`"", "`"$SketchDir`"" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $CompileLog -RedirectStandardError "$PSScriptRoot\compile_err.log"
+
+if ($p.ExitCode -ne 0) { 
     Write-Error "Compilation Failed. Check $CompileLog for details."
     exit 1 
 }
@@ -78,10 +102,11 @@ if (Test-Path $HostsFile) {
             Write-Host "  Status: ONLINE" -ForegroundColor Green
             Write-Host "  Uploading..." -NoNewline
             
-            # Run espota and capture output
-            & $EspOtaPath -i $target -p 3232 -f $BinPath 2>&1 | Out-File -FilePath $uploadLog -Encoding UTF8
+            # Run espota via Start-Process -Wait
+            # Separate StdOut and StdErr logs
+            $p = Start-Process -FilePath $EspOtaPath -ArgumentList "-i", "$target", "-p", "3232", "-f", "`"$BinPath`"" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $uploadLog -RedirectStandardError "$BuildDir\upload_${target}_err.log"
             
-            if ($LASTEXITCODE -eq 0) {
+            if ($p.ExitCode -eq 0) {
                 Write-Host " SUCCESS" -ForegroundColor Green
             } else {
                 Write-Host " FAILED" -ForegroundColor Red

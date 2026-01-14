@@ -46,6 +46,7 @@ void Logger::addLog(String level, const char* tag, const char* message) {
 
     // 2. Write to Memory Buffer (Protected)
     if (xSemaphoreTake(_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        // Main RingBuffer logic
         _logs.push_back(logEntry);
         _currentMemoryUsage += logEntry.length();
 
@@ -60,6 +61,12 @@ void Logger::addLog(String level, const char* tag, const char* message) {
                 break; 
             }
         }
+
+        // Head Logs Logic (Preserve first N logs)
+        if (_headLogs.size() < _maxHeadLogs) {
+            _headLogs.push_back(logEntry);
+        }
+
         xSemaphoreGive(_mutex);
     }
 }
@@ -71,4 +78,27 @@ std::deque<String> Logger::getLogs() {
         xSemaphoreGive(_mutex);
     }
     return copy;
+}
+
+std::deque<String> Logger::getHeadLogs() {
+    std::deque<String> copy;
+    if (xSemaphoreTake(_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        copy = _headLogs; 
+        xSemaphoreGive(_mutex);
+    }
+    return copy;
+}
+
+void Logger::populateLogs(JsonArray& arr) {
+    if (xSemaphoreTake(_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        // Return only last 50 logs for /api/status to save bandwidth
+        size_t start = (_logs.size() > 50) ? _logs.size() - 50 : 0;
+        auto it = _logs.begin();
+        std::advance(it, start);
+        
+        for (; it != _logs.end(); ++it) {
+            arr.add(*it);
+        }
+        xSemaphoreGive(_mutex);
+    }
 }

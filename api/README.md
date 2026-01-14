@@ -58,4 +58,35 @@ All API endpoints must return helpful error messages for 400-series client error
 
 ## API Reference
 
-(Detailed API endpoint documentation will go here)
+### 1. General Status
+*   **Endpoint:** `/api/status`
+*   **Method:** `GET`
+*   **Description:** Returns the complete system state. To reduce network load, this endpoint aggregates:
+    *   System Health (Uptime, Heap, Build ID)
+    *   Peer List (Discovered neighbors)
+    *   Recent Logs (Last 50 entries)
+    *   Active Task Status
+
+### 2. Task Management
+*   **Endpoint:** `/api/queue`
+*   **Method:** `GET`
+*   **Description:** Returns the current active task and the pending task queue.
+
+### 3. System Utilities
+*   **Endpoint:** `/api/reboot`
+*   **Method:** `POST`
+*   **Description:** Triggers a system restart. Returns 200 OK immediately, then reboots after 100ms.
+
+### 4. Logging
+*   **Endpoint:** `/api/logs`
+*   **Method:** `GET`
+*   **Description:** Returns the runtime log buffer (Tail). Rotates when full.
+*   **Endpoint:** `/api/logs/head`
+*   **Method:** `GET`
+*   **Description:** Returns the first 50 logs from the boot sequence (Head). Valid until reboot.
+
+### 5. Discovery
+*   **Endpoint:** `/api`
+*   **Method:** `GET`
+*   **Description:** Self-discovery endpoint listing all available routes.
+

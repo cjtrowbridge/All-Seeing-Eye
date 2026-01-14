@@ -115,6 +115,22 @@
             display: block;
         }
 
+        /* Network Map */
+        #network-map-container {
+            height: 300px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        #network-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
         /* Controls moved to Task View */
         .controls-container {
             display: flex;
@@ -202,6 +218,12 @@
             <div style="margin-top:20px; color:#666; font-size:0.8rem; text-align:center;">
                 Discovery: mDNS (Active) | Viral Intercept (Active) | Subnet Scan (Auto)
             </div>
+
+            <!-- Network Visualization -->
+            <div id="network-map-container">
+                <canvas id="network-canvas"></canvas>
+                <div style="position:absolute; bottom:5px; right:10px; font-size:0.7rem; color:#444;">Live Topology</div>
+            </div>
         </div>
 
         <!-- Tab Content: Task View -->
@@ -239,6 +261,11 @@
         <!-- Persistent Viz -->
         <div id="viz-panel">
             <canvas id="spectrum-canvas"></canvas>
+        </div>
+
+        <!-- Network Map (New) -->
+        <div id="network-map-container" style="display:none;">
+            <canvas id="network-canvas"></canvas>
         </div>
     </main>
 
@@ -278,15 +305,24 @@
         const IP = window.location.hostname === "localhost" ? "allseeingeye.local" : window.location.hostname;
         // Local Device store
         let myDevice = { hostname: "Loading...", ip: IP, status: "Unknown", cluster: "Default", online: true, isSelf: true };
+        let currentBuildId = null; 
         
         const canvas = document.getElementById('spectrum-canvas');
         const ctx = canvas.getContext('2d');
         const logBox = document.getElementById('log-list');
         
+        // Network Viz Globals
+        const netCanvas = document.getElementById('network-canvas');
+        const netCtx = netCanvas.getContext('2d');
+        let netNodes = [];
+        let netLinks = [];
+
         // Resize Canvas
         function resize() {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
+            netCanvas.width = netCanvas.offsetWidth;
+            netCanvas.height = netCanvas.offsetHeight;
         }
         window.addEventListener('resize', resize);
         // Delay initial resize to ensure layout is done
@@ -329,8 +365,35 @@
                 document.getElementById('cluster-status').innerText = 
                     `Current Cluster: ${data.clusterName || "Default"} ✨ Working On: ${taskDesc}`;
 
-                // Trigger Peer Refresh
-                fetchPeers();
+                // Auto-Reload on Firmware Update
+                if (data.build_id) {
+                    if (currentBuildId === null) {
+                        currentBuildId = data.build_id;
+                        console.log("Registered Build ID:", currentBuildId);
+                    } else if (currentBuildId !== data.build_id) {
+                        console.log("New Firmware Detected! Reloading...");
+                        window.location.reload();
+                    }
+                }
+                
+                // --- PROCESS AGGREGATED DATA ---
+                
+                // 1. Logs
+                if (data.logs && Array.isArray(data.logs)) {
+                     const slice = data.logs; // Backend already limits to 50
+                     logBox.innerHTML = slice.map(l => `<div class="log-entry">${l}</div>`).join('');
+                     logBox.scrollTop = logBox.scrollHeight;
+                }
+
+                // 2. Peers
+                if (data.peers && Array.isArray(data.peers)) {
+                    renderPeerList(data.peers);
+                    
+                    // Trigger Crawl for Visualization (Throttled?)
+                    if(!isCrawling) {
+                        crawlNetwork(data.peers);
+                    }
+                }
 
             } catch(e) {
                 document.getElementById('connection-status').innerText = "OFFLINE";
@@ -340,106 +403,335 @@
         setInterval(fetchStatus, 2000);
         fetchStatus();
 
-        // Fetch Peers
-        async function fetchPeers() {
-            try {
-                const res = await fetch('/api/peers');
-                const peers = await res.json();
-                
-                const container = document.getElementById('cluster-tree');
-                
-                // Merge Self into Peer List for unified rendering
-                const allNodes = [ myDevice, ...peers ];
-                
-                // Group by Cluster
-                const clusters = {};
-                allNodes.forEach(p => {
-                    // Normalize cluster name
-                    let c = p.cluster;
-                    if (!c || c === "") c = "Default";
-                    
-                    if(!clusters[c]) clusters[c] = [];
-                    clusters[c].push(p);
-                });
-                
-                // Build HTML
-                let html = "";
-                // Sort keys so Default is always first (or alphabetical)
-                const sortedKeys = Object.keys(clusters).sort();
-                
-                for (const cName of sortedKeys) {
-                    const cPeers = clusters[cName];
-                    
-                    // Is this the cluster I am in?
-                    const isMyCluster = (cName === myDevice.cluster);
-                    const headerColor = isMyCluster ? "var(--success-color)" : "#bb86fc";
-                    const suffix = isMyCluster ? " (Local)" : "";
-                    
-                    html += `<div class="cluster-root" style="margin-top:15px; color:${headerColor};">Cluster: ${cName}${suffix}</div>`;
-                    
-                    html += cPeers.map(p => {
-                         const isMe = p.isSelf;
-                         // Link: use hostname.local if available, else fallback to IP? 
-                         // Hostname is cleaner. But we must be sure .local works. 
-                         // mDNS is standard.
-                         const link = `http://${p.hostname}.local`;
-                         
-                         const statusColor = (p.status.startsWith("Ready") || p.status.startsWith("Working")) ? 'var(--success-color)' : 
-                                            (p.status.startsWith("Error")) ? 'var(--danger-color)' : '#666';
-                         
-                         // Determine Task String
-                         const taskStr = p.task || "Unknown Task";
+        // Fetch Peers & Crawl
+        let isCrawling = false;
+        
+        // Removed dedicated fetchPeers() polling loop
+        // Removed dedicated fetchLogs() polling loop
 
-                         // Time since last update
-                         // If remote: use p.lastProbe (millis from boot). This is hard to sync to absolute time.
-                         // Actually, lastProbe is 'millis()', which is uptime. This does not help browser.
-                         // But we fetch /api/peers constantly. The values there are current.
-                         // We can just say "Updated recently". 
-                         // Wait, for the 'Self' I used Date.now(). For peers, the backend sends `lastProbe` which is uptime.
-                         // Backend should probably not send raw millis, or the UI just ignores it and assumes "Just Now" if online.
-                         // Let's use a simple "Online" or relative time approach.
-                         
-                         // Re-reading request: "keep track of the time the value was last updated"
-                         // The browser fetches the list. If the backend says online, it means it saw it recently.
-                         // Let's add a `title` attribute with the Task name and maybe a generic "Last Seen" text.
-                         // Actually, we can assume the data is fresh if the fetch just happened. 
-                         // Let's just put the Task Name in the UI as requested. "before the status".
-                         
-                         return `
-                        <div class="tree-node">
-                            <div class="device-node" onclick="window.location.href='${link}'" title="Task: ${taskStr} | Click to open dashboard" style="${isMe ? 'border:1px solid #333;' : ''}">
-                                <span style="color:${isMe ? 'white':'#aaa'}; font-weight:bold;">${p.hostname}</span>
-                                <span style="margin-left:10px; font-size: 0.8rem; color:#888;">${taskStr}</span>
-                                <span style="margin-left:5px; font-size: 0.8rem; color:${p.online ? statusColor : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
-                                <div style="flex:1"></div>
-                                <span style="color:#444; font-size:0.8rem;">${isMe ? "(This Device)" : p.ip}</span>
-                            </div>
+        function renderPeerList(peers) {
+             const container = document.getElementById('cluster-tree');
+                
+            // Merge Self into Peer List for unified rendering
+            const allNodes = [ myDevice, ...peers ];
+            
+            // Group by Cluster
+            const clusters = {};
+            allNodes.forEach(p => {
+                // Normalize cluster name
+                let c = p.cluster;
+                if (!c || c === "") c = "Default";
+                
+                if(!clusters[c]) clusters[c] = [];
+                clusters[c].push(p);
+            });
+            
+            // Build HTML
+            let html = "";
+            const sortedKeys = Object.keys(clusters).sort();
+            
+            for (const cName of sortedKeys) {
+                const cPeers = clusters[cName];
+                const isMyCluster = (cName === myDevice.cluster);
+                const headerColor = isMyCluster ? "var(--success-color)" : "#bb86fc";
+                const suffix = isMyCluster ? " (Local)" : "";
+                
+                html += `<div class="cluster-root" style="margin-top:15px; color:${headerColor};">Cluster: ${cName}${suffix}</div>`;
+                
+                html += cPeers.map(p => {
+                        const isMe = p.isSelf;
+                        const link = `http://${(p.hostname || p.ip).toLowerCase()}.local`; // Try mDNS
+                        const alternateLink = `http://${p.ip}`; 
+                        
+                        // Use IP if hostname seems invalid or for robustness
+                        const finalLink = (p.ip) ? alternateLink : link;
+
+                        const statusColor = (p.status && (p.status.startsWith("Ready") || p.status.startsWith("Working"))) ? 'var(--success-color)' : 
+                                        (p.status && p.status.startsWith("Error")) ? 'var(--danger-color)' : '#666';
+                        
+                        const taskStr = p.task || "Unknown Task";
+                        
+                        return `
+                    <div class="tree-node">
+                        <div class="device-node" onclick="window.location.href='${finalLink}'" title="Task: ${taskStr} | Click to open dashboard" style="${isMe ? 'border:1px solid #333;' : ''}">
+                            <span style="color:${isMe ? 'white':'#aaa'}; font-weight:bold;">${p.hostname}</span>
+                            <span style="margin-left:10px; font-size: 0.8rem; color:#888;">${taskStr}</span>
+                            <span style="margin-left:5px; font-size: 0.8rem; color:${p.online ? statusColor : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
+                            <div style="flex:1"></div>
+                            <span style="color:#444; font-size:0.8rem;">${isMe ? "(This Device)" : p.ip}</span>
                         </div>
-                    `}).join('');
-                }
-                
-                container.innerHTML = html;
-
-            } catch(e) { console.error(e); }
+                    </div>
+                `}).join('');
+            }
+            container.innerHTML = html;
         }
 
-        // Polling Logs
-        async function fetchLogs() {
-            try {
-                const res = await fetch('/api/logs');
-                const logs = await res.json();
-                
-                if(logs.length > 0) {
-                     // Simple diff or rebuild? Rebuild for now, it's cheap for small lists
-                     // Show last 50
-                     const slice = logs.slice(Math.max(logs.length - 50, 0));
-                     logBox.innerHTML = slice.map(l => `<div class="log-entry">${l}</div>`).join('');
-                     // Auto scroll to bottom
-                     logBox.scrollTop = logBox.scrollHeight;
+        async function crawlNetwork(localPeers) {
+            isCrawling = true;
+            const nodeMap = new Map();
+            const links = [];
+
+            // Add Self
+            nodeMap.set(myDevice.hostname, myDevice);
+
+            // Add Local Peers (Degree 1) and Links from Me -> Them
+            localPeers.forEach(p => {
+                nodeMap.set(p.hostname, p);
+                links.push({ source: myDevice.hostname, target: p.hostname });
+            });
+
+            // Fetch Degree 2 (Peers of Peers)
+            // This allows us to see connections between my peers
+            const promises = localPeers.map(async (p) => {
+                if (!p.ip) return;
+                try {
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), 2000); // 2s Timeout
+                    
+                    const res = await fetch(`http://${p.ip}/api/peers`, { signal: controller.signal });
+                    clearTimeout(id);
+                    
+                    if (res.ok) {
+                        const remotePeers = await res.json();
+                        remotePeers.forEach(rp => {
+                            // Link p -> rp
+                            links.push({ source: p.hostname, target: rp.hostname });
+
+                            // If we haven't seen this node, it's a Degree 2 node
+                            if (!nodeMap.has(rp.hostname)) {
+                                rp.degree = 2; 
+                                nodeMap.set(rp.hostname, rp);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // Peer might be offline or CORS blocked (if old firmware)
+                    // console.warn("Crawl failed for", p.hostname); 
                 }
-            } catch(e) { /* ignore */ }
+            });
+
+            await Promise.all(promises);
+            
+            updateNetworkGraph(Array.from(nodeMap.values()), links);
+            isCrawling = false;
         }
-        setInterval(fetchLogs, 1000);
+
+        // --- Force Directed Graph Logic ---
+        
+        function updateNetworkGraph(nodes, externalLinks) {
+            // nodes is [ {hostname, cluster, status...}, ... ]
+            
+            // 1. Map current netNodes to a map for lookup (preserve positions)
+            const existing = new Map(netNodes.map(n => [n.id, n]));
+            
+            // 2. Build new node list
+            netNodes = nodes.map(n => {
+                const id = n.hostname;
+                const old = existing.get(id);
+                // Random position start if new
+                const x = old ? old.x : (netCanvas.width/2 + (Math.random()-0.5)*50);
+                const y = old ? old.y : (netCanvas.height/2 + (Math.random()-0.5)*50);
+                
+                return {
+                    id: id,
+                    x: x,
+                    y: y,
+                    vx: old ? old.vx : 0,
+                    vy: old ? old.vy : 0,
+                    data: n
+                };
+            });
+
+            // 3. Build Links
+            if (externalLinks) {
+                // Use crawled links
+                netLinks = externalLinks;
+            } else {
+                // Fallback: Star Topology
+                netLinks = [];
+                const centerId = myDevice.hostname;
+                netNodes.forEach(n => {
+                    if (n.id !== centerId) {
+                        netLinks.push({ source: centerId, target: n.id });
+                    }
+                });
+            }
+        }
+
+        function runForceSimulation() {
+            if(!netNodes.length) {
+                requestAnimationFrame(runForceSimulation);
+                return;
+            }
+
+            const width = netCanvas.width;
+            const height = netCanvas.height;
+            const k = 100; // ideal distance
+            
+            // 0. Center Forces (Gravity)
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Physics Step
+            netNodes.forEach(n => {
+                // Repulsion (Coulomb)
+                netNodes.forEach(other => {
+                    if (n !== other) {
+                        const dx = n.x - other.x;
+                        const dy = n.y - other.y;
+                        const distSq = dx*dx + dy*dy;
+                        const dist = Math.sqrt(distSq) || 1;
+                        const force = 2000 / distSq; // Repulsion strength
+                        n.vx += (dx / dist) * force;
+                        n.vy += (dy / dist) * force;
+                    }
+                });
+
+                // Center Gravity (weak)
+                n.vx += (cx - n.x) * 0.005;
+                n.vy += (cy - n.y) * 0.005;
+
+                // Cluster Gravity (Group similar clusters)
+                // TODO: Find center of mass of cluster? 
+                // Simple version: Nodes in same cluster attract slightly
+                /*
+                netNodes.forEach(other => {
+                    if (n !== other && n.data.cluster === other.data.cluster) {
+                        const dx = other.x - n.x;
+                        const dy = other.y - n.y;
+                         n.vx += dx * 0.001;
+                         n.vy += dy * 0.001;
+                    }
+                });
+                */
+            });
+
+            // Link Attraction (Spring)
+            netLinks.forEach(l => {
+                // Find node objects
+                const s = netNodes.find(n => n.id === l.source);
+                const t = netNodes.find(n => n.id === l.target);
+                if (s && t) {
+                    const dx = t.x - s.x;
+                    const dy = t.y - s.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    const force = (dist - k) * 0.05; // Spring constant
+                    
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    
+                    s.vx += fx;
+                    s.vy += fy;
+                    t.vx -= fx;
+                    t.vy -= fy;
+                }
+            });
+
+            // Integration & Bounds
+            netNodes.forEach(n => {
+                n.vx *= 0.8; // Friction
+                n.vy *= 0.8;
+                
+                // Max speed clamp
+                const speed = Math.sqrt(n.vx*n.vx + n.vy*n.vy);
+                if(speed > 10) {
+                    n.vx = (n.vx/speed)*10;
+                    n.vy = (n.vy/speed)*10;
+                }
+
+                n.x += n.vx;
+                n.y += n.vy;
+
+                // Wall bounce
+                if(n.x < 20) { n.x = 20; n.vx *= -0.5; }
+                if(n.x > width-20) { n.x = width-20; n.vx *= -0.5; }
+                if(n.y < 20) { n.y = 20; n.vy *= -0.5; }
+                if(n.y > height-20) { n.y = height-20; n.vy *= -0.5; }
+            });
+
+            // Draw
+            netCtx.clearRect(0, 0, width, height);
+
+            // Draw Links
+            netCtx.strokeStyle = '#333';
+            netCtx.lineWidth = 1;
+            netCtx.beginPath();
+            netLinks.forEach(l => {
+                const s = netNodes.find(n => n.id === l.source);
+                const t = netNodes.find(n => n.id === l.target);
+                if (s && t) {
+                    netCtx.moveTo(s.x, s.y);
+                    netCtx.lineTo(t.x, t.y);
+                }
+            });
+            netCtx.stroke();
+
+            // Draw Nodes
+            netNodes.forEach(n => {
+                netCtx.beginPath();
+                netCtx.arc(n.x, n.y, 8, 0, 2 * Math.PI);
+                
+                // Color by Status/Self
+                if (n.data.isSelf) netCtx.fillStyle = '#03dac6'; // Cyan
+                else if (n.data.online) netCtx.fillStyle = '#bb86fc'; // Purple
+                else netCtx.fillStyle = '#444'; // Gray
+                
+                netCtx.fill();
+                netCtx.strokeStyle = '#000';
+                netCtx.lineWidth = 2;
+                netCtx.stroke();
+
+                // Labels
+                netCtx.fillStyle = '#fff';
+                netCtx.font = '10px Consolas';
+                netCtx.fillText(n.id, n.x + 10, n.y + 3);
+            });
+
+            requestAnimationFrame(runForceSimulation);
+        }
+        
+        // Start Sim
+        runForceSimulation();
+
+        // Canvas Interaction (Click to Visit)
+        netCanvas.addEventListener('click', (e) => {
+            const rect = netCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Check collision with nodes
+            for (const n of netNodes) {
+                const dx = mouseX - n.x;
+                const dy = mouseY - n.y;
+                // Hit radius 12 (drawn radius is 8)
+                if (dx*dx + dy*dy < 144) { 
+                    const p = n.data;
+                    const link = `http://${(p.hostname || p.ip).toLowerCase()}.local`;
+                    const alternateLink = `http://${p.ip}`; 
+                    const finalLink = (p.ip) ? alternateLink : link;
+                    window.location.href = finalLink;
+                    break;
+                }
+            }
+        });
+
+        // Mouse Move for Cursor
+        netCanvas.addEventListener('mousemove', (e) => {
+            const rect = netCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            let hover = false;
+            for (const n of netNodes) {
+                const dx = mouseX - n.x;
+                const dy = mouseY - n.y;
+                if (dx*dx + dy*dy < 144) {
+                    hover = true;
+                    break;
+                }
+            }
+            netCanvas.style.cursor = hover ? 'pointer' : 'default';
+        });
 
         // Dummy Viz
         function drawPattern() {

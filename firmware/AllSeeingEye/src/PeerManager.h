@@ -33,6 +33,7 @@ public:
     
     // Returns the list of discovered peers as a JSON Array
     String getPeersAsJson();
+    void populatePeers(JsonArray& arr); // Helper for /api/status aggregation
     
     // Called when an unknown host requests data
     void trackIncomingRequest(String ip);

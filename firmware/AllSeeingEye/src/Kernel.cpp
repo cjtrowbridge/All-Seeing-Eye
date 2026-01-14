@@ -9,17 +9,10 @@
 #include <ESPmDNS.h>
 #include "RingBuffer.h"
 #include "PluginManager.h"
-#include "SystemIdlePlugin.h"
-
-// Plugin Includes
-#include "RadioTestPlugin.h"
+#include "Scheduler.h"
 
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
-
-// Pre-instantiate Plugins
-SystemIdlePlugin idlePlugin;
-RadioTestPlugin radioPlugin;
 
 Kernel& Kernel::instance() {
     static Kernel _instance;
@@ -64,8 +57,11 @@ void Kernel::setup() {
 
     // 7.5 Peer Manager
     PeerManager::instance().begin();
+    
+    // 8. Task Scheduler
+    Scheduler::instance().begin();
 
-    // 8. Start Plugin Task (Core 1)
+    // 9. Start Plugin Task (Core 1)
     xTaskCreatePinnedToCore(
         pluginTask,   // Function
         "PluginTask", // Name
@@ -76,13 +72,21 @@ void Kernel::setup() {
         1             // Core 1
     );
 
-    // 9. Load Default Plugin
-    // Radio POST passed (Step 2), so we default to Idle.
-    PluginManager::instance().loadPlugin(&idlePlugin);
-
+   // 10. Startup Sequence
     if (_hardwareHealthy) {
+        // Enqueue Hardware Verification
+        RadioTask bootTest;
+        bootTest.id = "BOOT-" + String(millis());
+        bootTest.type = TASK_CRITICAL;
+        bootTest.pluginName = "RadioTest";
+        bootTest.taskName = "Hardware Verification";
+        bootTest.durationMs = 5000; // Run for 5s then Idle
+        
+        Scheduler::instance().enqueue(bootTest);
+        
         HAL::instance().setLed(128, 0, 128); // Purple (Ready)
     } else {
+        // Just verify what we can (Idle)
         HAL::instance().setLed(255, 0, 0); // Keep Red (Error)
     }
 
@@ -93,6 +97,7 @@ void Kernel::loop() {
     // Core 0 Maintenance Loop
     ArduinoOTA.handle();
     PeerManager::instance().loop(); // Handle Discovery
+    Scheduler::instance().loop();   // Handle Tasks
 
     // WiFi handling, OTA, etc implicitly handled by events
     // We can add watchdog or status logging here

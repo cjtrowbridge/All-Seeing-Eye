@@ -18,6 +18,9 @@ This playbook provides a systematic checklist for **Agents** to diagnose "Offlin
     *   **Action 2**: Scan IP Table if hostname fails.
         *   Command: `arp -a`
         *   *Analysis*: Search output for Espressif MAC OUI (`48:E7`, `54:32`, etc).
+    *   **Action 3 (New)**: Check the **Startup Logs** if the device is responsive but behaving oddly.
+        *   Command: `curl http://[hostname].local/api/logs/head`
+        *   *Analysis*: Look for "Failed to mount FS", "Radio Init Failed", or "WiFi Reason" codes. This buffer is preserved even if the runtime logs rotate.
     *   **Result**: 
         *   If responding to Ping: Node is Alive (Network Layer OK). Problem is likely Application Layer (Web Server crashed).
         *   If NO response: Node is network-dead. Proceed to Phase 2.

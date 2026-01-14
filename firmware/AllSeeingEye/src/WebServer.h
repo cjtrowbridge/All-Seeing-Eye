@@ -15,6 +15,12 @@ private:
     AsyncWebServer _server;
     
     void setupRoutes();
+    
+    // Cache System
+    String _cachedStatus;
+    unsigned long _lastCacheTime = 0;
+    const unsigned long _cacheDuration = 500; // Cache for 500ms
+    String getCachedStatus();
 };
 
 #endif

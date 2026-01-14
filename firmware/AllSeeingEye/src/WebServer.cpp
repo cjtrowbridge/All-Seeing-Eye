@@ -1,6 +1,7 @@
 #include "WebServer.h"
 #include <LittleFS.h>
 #include "WebStatic.h" // Include generated HTML header
+#include "BuildVersion.h" // Include generated Build ID
 #include "Kernel.h" // For status access
 #include "Logger.h" // Add Logger
 #include "RingBuffer.h" // Add RingBuffer
@@ -8,6 +9,7 @@
 #include "PeerManager.h" // Add PeerManager
 #include "AsyncJson.h" 
 #include <ArduinoJson.h>
+#include "Scheduler.h" // Add scheduler
 
 WebServerManager& WebServerManager::instance() {
     static WebServerManager _instance;
@@ -17,6 +19,8 @@ WebServerManager& WebServerManager::instance() {
 WebServerManager::WebServerManager() : _server(80) {}
 
 void WebServerManager::begin() {
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+    
     setupRoutes();
     _server.begin();
     Serial.println("[Web] Async Server Started on Port 80");
@@ -28,43 +32,8 @@ void WebServerManager::setupRoutes() {
     // --------------------------------------------------
 
     // API: Status
-    _server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
-        JsonDocument doc;
-        doc["uptime"] = millis();
-        doc["heap_free"] = ESP.getFreeHeap();
-        doc["heap_size"] = ESP.getHeapSize(); // Added for % calc
-        doc["psram_free"] = ESP.getFreePsram();
-        doc["psram_size"] = ESP.getPsramSize();
-        doc["flash_size"] = ESP.getFlashChipSize();
-
-        doc["hostname"] = Config::instance().getHostname();
-        
-        doc["rb_capacity"] = RingBuffer::instance().capacity();
-        doc["rb_usage"] = RingBuffer::instance().available();
-
-        doc["plugin"] = PluginManager::instance().getActivePluginName();
-
-        // Calculate System Status
-        String statusMsg = "Ready";
-        if (!Kernel::instance().isHardwareHealthy()) {
-            statusMsg = "Radio Problem: Failed To POST";
-        } else {
-            String pName = PluginManager::instance().getActivePluginName();
-            if (pName == "SystemIdle") {
-                statusMsg = "Ready";
-            } else if (pName == "RadioTest") {
-                statusMsg = "Working: Hardware Verification";
-            } else {
-                 statusMsg = "Working: " + pName;
-            }
-        }
-        doc["status"] = statusMsg;
-        doc["task"] = PluginManager::instance().getActiveTaskName();
-        doc["clusterName"] = Config::instance().getString("cluster", "Default");
-
-        String response;
-        serializeJson(doc, response);
-        request->send(200, "application/json", response);
+    _server.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest *request){
+        request->send(200, "application/json", this->getCachedStatus());
     });
 
     // API: Configuration (GET)
@@ -152,6 +121,53 @@ void WebServerManager::setupRoutes() {
         request->send(200, "application/json", response);
     });
 
+    // API: System Head Logs (Startup Logs)
+    _server.on("/api/logs/head", HTTP_GET, [](AsyncWebServerRequest *request){
+        JsonDocument doc;
+        JsonArray logs = doc.to<JsonArray>();
+        
+        std::deque<String> logBuffer = Logger::instance().getHeadLogs();
+        
+        for(const auto& line : logBuffer) {
+            logs.add(line);
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
+    // --------------------------------------------------
+    // API: Queue (Task Scheduler)
+    // --------------------------------------------------
+    _server.on("/api/queue", HTTP_GET, [](AsyncWebServerRequest *request){
+        JsonDocument doc;
+        
+        // Current Task
+        RadioTask current = Scheduler::instance().getCurrentTask();
+        JsonObject currObj = doc.createNestedObject("current");
+        currObj["id"] = current.id;
+        currObj["name"] = current.taskName;
+        currObj["plugin"] = current.pluginName;
+        currObj["elapsed"] = millis() - current.startTime;
+        currObj["duration"] = current.durationMs;
+        
+        // Queue
+        JsonArray qArr = doc.createNestedArray("queue");
+        std::deque<RadioTask> queue = Scheduler::instance().getQueue();
+        for(const auto& t : queue) {
+            JsonObject obj = qArr.add<JsonObject>();
+            obj["id"] = t.id;
+            obj["name"] = t.taskName;
+            obj["plugin"] = t.pluginName;
+            obj["type"] = (int)t.type;
+        }
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
     // --------------------------------------------------
     // 2. Generic API Endpoint (Discovery)
     // --------------------------------------------------
@@ -182,12 +198,27 @@ void WebServerManager::setupRoutes() {
         JsonObject r5 = routes.add<JsonObject>();
         r5["path"] = "/api/logs";
         r5["method"] = "GET";
-        r5["desc"] = "Get system log buffer";
+        r5["desc"] = "Get system log buffer (Tail)";
+
+        JsonObject r5a = routes.add<JsonObject>();
+        r5a["path"] = "/api/logs/head";
+        r5a["method"] = "GET";
+        r5a["desc"] = "Get system startup logs (Head)";
 
         JsonObject r6 = routes.add<JsonObject>();
         r6["path"] = "/api/peers";
         r6["method"] = "GET";
         r6["desc"] = "Get discovered peers list";
+
+        JsonObject r7 = routes.add<JsonObject>();
+        r7["path"] = "/api/queue";
+        r7["method"] = "GET";
+        r7["desc"] = "Inspect task scheduler state";
+
+        JsonObject r8 = routes.add<JsonObject>();
+        r8["path"] = "/api/reboot";
+        r8["method"] = "POST";
+        r8["desc"] = "Restart the device";
 
         String response;
         serializeJson(doc, response);
@@ -210,4 +241,82 @@ void WebServerManager::setupRoutes() {
 
     // Fallback: Serve other static files from LittleFS (if we add images later)
     _server.serveStatic("/assets", LittleFS, "/assets");
+
+    // API: Reboot
+    _server.on("/api/reboot", HTTP_POST, [](AsyncWebServerRequest *request){
+        request->send(200, "application/json", "{\"status\":\"success\", \"message\":\"Rebooting...\"}");
+        // Delay slightly to let the response flush
+        // We can't delay in async handler easily, but ESP.restart() is abrupt.
+        // A timer or loop check in main might be better, but often this works enough to close socket.
+        // For safety, we set a flag or just restart.
+        
+        // Quick & Dirty: Defer restart to main loop or just do it.
+        // AsyncWebserver runs in a task. calling restart here *might* be okay but cleaner to defer.
+        // Let's defer using a timer callback or just do it after short delay.
+        
+        xTaskCreate([](void*){ 
+            vTaskDelay(pdMS_TO_TICKS(100)); // Allow response to send
+            ESP.restart(); 
+            vTaskDelete(NULL);
+        }, "reboot", 2048, NULL, 5, NULL);
+    });
+}
+
+String WebServerManager::getCachedStatus() {
+    // Check Validity (Time based + existence)
+    if (millis() - _lastCacheTime < _cacheDuration && _cachedStatus.length() > 0) {
+        return _cachedStatus;
+    }
+
+    // Dynamic Allocation
+    JsonDocument doc; 
+    
+    doc["uptime"] = millis();
+    doc["heap_free"] = ESP.getFreeHeap();
+    doc["heap_size"] = ESP.getHeapSize();
+    doc["psram_free"] = ESP.getFreePsram();
+    doc["psram_size"] = ESP.getPsramSize();
+    doc["flash_size"] = ESP.getFlashChipSize();
+
+    doc["hostname"] = Config::instance().getHostname();
+    doc["build_id"] = BUILD_ID;
+    
+    doc["rb_capacity"] = RingBuffer::instance().capacity();
+    doc["rb_usage"] = RingBuffer::instance().available();
+
+    doc["plugin"] = PluginManager::instance().getActivePluginName();
+
+    // Calculate System Status
+    String statusMsg = "Ready";
+    if (!Kernel::instance().isHardwareHealthy()) {
+        statusMsg = "Radio Problem: Failed To POST";
+    } else {
+        String pName = PluginManager::instance().getActivePluginName();
+        if (pName == "SystemIdle") {
+            statusMsg = "Ready";
+        } else if (pName == "RadioTest") {
+            statusMsg = "Working: Hardware Verification";
+        } else {
+             statusMsg = "Working: " + pName;
+        }
+    }
+    doc["status"] = statusMsg;
+    doc["task"] = PluginManager::instance().getActiveTaskName();
+    doc["clusterName"] = Config::instance().getString("cluster", "Default");
+
+    // Aggregated Data
+    JsonArray peers = doc.createNestedArray("peers");
+    PeerManager::instance().populatePeers(peers);
+
+    JsonArray logs = doc.createNestedArray("logs");
+    Logger::instance().populateLogs(logs);
+
+    String response;
+    serializeJson(doc, response);
+    
+    // Update Cache
+    _cachedStatus = response;
+    _lastCacheTime = millis();
+    
+    return response;
 }

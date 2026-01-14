@@ -11,6 +11,13 @@ This playbook describes the process for compiling, packing web assets, and deplo
 *   **Network**: Desktop must be on the same local network as the nodes.
 *   **Context**: You must be in the `firmware/` directory of the repository.
 
+### CRITICAL AGENT INSTRUCTION: SYNCHRONOUS EXECUTION
+**Compiling firmware takes time (30-60 seconds).**
+*   **Tool Setting**: You MUST set `isBackground: false` when using `run_in_terminal`.
+*   **Blocking**: This setting forces the AI to wait until the `upload_ota.ps1` script exits.
+*   **Verification**: Do not proceed until you receive the full text output ending in "All Tasks Completed".
+*   If the tool call times out or returns partial output, verify the log file `build/compile.log` before proceeding.
+
 ## Step-by-Step Instructions
 
 1.  **Navigate to Firmware Directory**

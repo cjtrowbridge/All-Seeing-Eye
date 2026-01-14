@@ -21,6 +21,11 @@
     -   **Rule**: The CC1101 radio must be operated in **RX (Receive) Mode ONLY**.
     -   **Rule**: Do not commit any code that initializes the radio for transmission (TX) or enables broadcasting. The default firmware is passive.
 
+6.  **WebUI Polling Optimization**:
+    -   **Rule**: The WebUI must only poll `/api/status` on a regular interval (e.g., 2s).
+    -   **Rule**: `/api/status` must embed the latest **Logs** (last N lines) and **Peer List** to support this single-call architecture.
+    -   **Reason**: The ESP32 single-core network stack struggles with concurrent HTTP requests. reducing connection overhead improves responsiveness.
+
 ---
 
 # Roadmap
@@ -37,12 +42,15 @@
 - [x] RSSI Reading & Tuning
 - [x] Circular Buffer Logging
 
-## Phase 3: Web Dashboard (Near Completion)
+## Phase 3: Web Dashboard (Completed)
 - [x] Basic SPA structure
 - [x] WebSocket/Poll-based logs
 - [x] **UI Refactor**: Moves stats to footer, fix overlap (Tabbed View).
 - [x] **Navbar Enhancements**: Cluster Status with "Sparkle" indicators.
 - [ ] **Spectrum Visualization**: Connect real RSSI data to canvas.
+- [x] **Network Map**: Force-directed graph in Cluster Tab with clickable nodes.
+- [x] **Performance**: Consolidated polling to single `/api/status` endpoint.
+- [x] **Auto-Update**: UI detects new firmware version via Build ID and auto-reloads.
 - [ ] **Config UI**: Connect forms to backend Config API.
 
 ## Phase 4: VLBI Clustering (Backend Completed)
@@ -209,3 +217,23 @@ The node does not immediately start "working" on boot. It follows a strict initi
 *   **Preemption**: High-priority tasks (User overrides) push current tasks to `PAUSED` or `ABORTED` state.
 *   **Visibility**: `/api/status` returns the current queue depth and next scheduled operation.
 *   **Self-Correction**: All API errors must return a `usage` key with a valid JSON example to allow Agents to retry automatically.
+
+## 7. Cluster Network Topology Visualization
+The Web UI includes a "Network Map" canvas to visualize the complex relationships between nodes, especially as we introduce varied transport layers (Wi-Fi, Meshtastic, VPN).
+
+### 7.1 The Graph Model
+*   **Vertices (Nodes)**: Each node (local or remote) is a vertex.
+*   **Edges (Connections)**: A connection represents a visibility path.
+    *   *Wi-Fi (LAN)*: Typically a full mesh (everyone sees everyone).
+    *   *Meshtastic (LoRa)*: Partial mesh; Node A might see B, but A might not see C directly (multi-hop).
+    *   *VPN*: Long-distance links connecting disparate subnets.
+    *   *Indirect*: Connections reported by a peer that the local node cannot see directly.
+
+### 7.2 Visualization Logic
+The dashboard aggregates peer lists from all reachable nodes to build a "composite truth" of the network.
+*   **Local View**: What the current node sees directly.
+*   **Reported View**: What connected peers claim to see (e.g., "I am connected to Node X, which you can't see").
+*   **Rendering**:
+    *   Nodes are color-coded by Transport Type or Cluster ID.
+    *   Edges can be solid (Direct) or dashed (Indirect/Reported).
+    *   Uses a force-directed layout to naturally cluster well-connected groups (LANs) while showing the "bridges" (Mesh/VPN links) between them.

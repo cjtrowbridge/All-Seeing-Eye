@@ -11,8 +11,12 @@ public:
     static PluginManager& instance();
 
     // Use to switch plugins from Core 0
+    // NOTE: PluginManager TAKES OWNERSHIP of the pointer and will delete the OLD plugin.
     void loadPlugin(ASEPlugin* newPlugin);
     
+    // Factory Method
+    ASEPlugin* createPlugin(String name);
+
     // The main loop for Core 1
     void runLoop();
 

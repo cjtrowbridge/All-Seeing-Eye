@@ -293,7 +293,14 @@ void PeerManager::discover() {
 String PeerManager::getPeersAsJson() {
     JsonDocument doc;
     JsonArray arr = doc.to<JsonArray>();
+    populatePeers(arr);
+    
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
 
+void PeerManager::populatePeers(JsonArray& arr) {
     for (const auto &p : _peers) {
         JsonObject obj = arr.add<JsonObject>();
         obj["hostname"] = p.hostname;
@@ -307,8 +314,4 @@ String PeerManager::getPeersAsJson() {
         bool isOnline = (millis() - p.lastSeen < 120000);
         obj["online"] = isOnline;
     }
-    
-    String output;
-    serializeJson(doc, output);
-    return output;
 }

@@ -1,6 +1,11 @@
 #include "PluginManager.h"
 #include "Logger.h"
 
+// Available Plugins
+#include "SystemIdlePlugin.h"
+#include "RadioTestPlugin.h"
+// #include "ScannerPlugin.h" // Future
+
 PluginManager& PluginManager::instance() {
     static PluginManager _instance;
     return _instance;
@@ -19,7 +24,8 @@ void PluginManager::loadPlugin(ASEPlugin* newPlugin) {
     if (_activePlugin) {
         Logger::instance().info("PluginMgr", "Stopping plugin: %s...", _activePlugin->getName().c_str());
         _activePlugin->teardown();
-        // Note: We do not delete the object here, as we likely manage them as static or member instances in Kernel
+        delete _activePlugin; // Clean up old memory
+        _activePlugin = nullptr;
     }
     
     _activePlugin = newPlugin;
@@ -27,6 +33,19 @@ void PluginManager::loadPlugin(ASEPlugin* newPlugin) {
     _activePlugin->setup();
     
     xSemaphoreGive(_mutex);
+}
+
+ASEPlugin* PluginManager::createPlugin(String name) {
+    if (name == "SystemIdle" || name == "Idle") {
+        return new SystemIdlePlugin();
+    }
+    if (name == "RadioTest") {
+        return new RadioTestPlugin();
+    }
+    // Future: Scanner, Jammer, etc.
+    
+    Logger::instance().error("PluginMgr", "Unknown plugin request: %s. Defaulting to Idle.", name.c_str());
+    return new SystemIdlePlugin();
 }
 
 void PluginManager::runLoop() {

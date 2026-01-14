@@ -40,7 +40,11 @@ This system was originally architected and built by vast multi-trillion paramete
 ### The Protocol
 1.  **Seek Playbooks First**: When presented with a task, your **first action** must be to search `/api/playbooks/` for a relevant guide.
 2.  **Stick to the Script**: If a playbook exists, follow it step-by-step. Do not deviate.
-3.  **Stop on Ambiguity**: If you cannot find a playbook describing exactly what you are trying to do:
+3.  **Wait for Long Operations (Synchronous Execution)**: When running build scripts, compilations, or deployments (e.g., `upload_ota.ps1`), you must ensure the command is executed synchronously.
+    *   **Tool Requirement**: You MUST set `isBackground` to `false` when calling `run_in_terminal`.
+    *   **Behavior**: This enforces a "blocking" state where the AI pipeline halts until the script finishes.
+    *   **Verification**: Wait for the tool output to confirm completion (e.g., "All Tasks Completed") before generating your next response.
+4.  **Stop on Ambiguity**: If you cannot find a playbook describing exactly what you are trying to do:
     *   **STOP**.
     *   Do not guess.
     *   Do not try to "figure it out."
@@ -118,3 +122,19 @@ When adding a feature (e.g., "Night Mode"):
     }
     ```
 *   **Purpose**: Allows an Agent or Developer to self-correct a malformed request without consulting external documentation.
+
+### F. WebUI Polling Efficiency
+*   **Requirement**: The WebUI (and other constant monitoring clients) SHOULD primarily rely on a single endpoint (`/api/status`) for high-frequency polling (1-2s).
+*   **Content**: The `/api/status` endpoint MUST accept the overhead of aggregating necessary realtime data (Logs, Peer List, System Health) to minimize the number of HTTP requests and TCP overhead on the single-threaded web server.
+*   **In-Memory Cache**: The data served by `/api/status` SHOULD be cached in-memory and updated at a controlled interval, or as it changes, to reduce computation and I/O overhead.
+*   **Exceptions**: Dedicated endpoints (e.g., `/api/peers`, `/api/logs`) may still exist for specific deep-dives or independent tools, but the dashboard must not poll them in parallel with status.
+
+### G. Logging & Debugging Standards
+*   **Requirement**: All non-trivial operations (peer discovery, state change, error) must be logged to the circular buffer via `Logger::instance()`.
+*   **Head/Tail Separation**: 
+    *   **Tail**: The `Logger` class maintains a rolling buffer of the last N entries for realtime monitoring (`/api/logs`).
+    *   **Head**: The system MUST also preserve the first N (e.g., 50) entries from boot-up in a separate buffer (`/api/logs/head`).
+    *   **Purpose**: This ensures that boot-sequence errors (WiFi connection failures, hardware initialization issues) are not overwritten by later operational noise.
+*   **Endpoints**:
+    *   `/api/logs`: Returns the dynamic tail.
+    *   `/api/logs/head`: Returns the static startup log.
