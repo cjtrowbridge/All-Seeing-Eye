@@ -67,15 +67,15 @@
     -   Clusters visualized in Web UI Tree View.
     -   Configurable **Cluster Name** and **Ignore Hours**.
 
-## Phase 5: Radio Task Queue Architecture (Current Focus)
-- [ ] **Task Object & Scheduler**: Abstract `RadioTask` struct and `Scheduler` FIFO class.
-- [ ] **Startup Stages**: Implement POST -> Infrastructure -> Startup Queue -> App Loop lifecycle.
+## Phase 5: Radio Task Queue Architecture (Partial)
+- [x] **Task Object & Scheduler**: Abstract `RadioTask` struct and `Scheduler` FIFO class.
+- [x] **Startup Stages**: Implement POST -> Infrastructure -> Startup Queue -> App Loop lifecycle.
 - [ ] **Startup Tasks**:
-    - [ ] `RadioHardwareTest`: Validate CC1101 SPI.
+    - [x] `RadioHardwareTest`: Validate CC1101 SPI.
     - [ ] `GeolocationScan`: Wi-Fi/Radio fingerprinting.
     - [ ] `BackgroundNoiseCalibration`: Measure noise floor (replaces Cluster Discovery).
 - [ ] **Queue API**:
-    - [ ] `GET /api/queue`: List pending tasks.
+    - [x] `GET /api/queue`: List pending tasks.
     - [ ] `POST /api/queue`: Add new task.
     - [ ] `DELETE /api/queue/{id}`: Cancel/Remove task.
 - [ ] **Preemption Logic**: Handling interrupt-priority commands vs background scanning.
