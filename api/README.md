@@ -63,6 +63,26 @@ python cli.py [TARGET] [ACTION] [PAYLOAD]
     python cli.py post /api/task '{"plugin":"SpectrumSweep", "params":{"freq": 915}}'
     ```
 
+## API Endpoints Reference
+
+The following routes are registered in `firmware/AllSeeingEye/src/WebServer.cpp` and are the authoritative interface for the device.
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/api` | GET | Self-documentation of available endpoints |
+| `/api/status` | GET | System state, NTP sync, peers, logs |
+| `/api/config` | GET/POST | Read or update persisted configuration |
+| `/api/fs` | GET | List files in LittleFS |
+| `/api/peers` | GET | Peer registry from the node |
+| `/api/ping?target=IP` | GET | Ping a specific IP |
+| `/api/logs` | GET | Runtime log buffer (tail) |
+| `/api/logs/head` | GET | Startup log buffer (head) |
+| `/api/led?r=R&g=G&b=B` | GET | Set LED color and return LED status |
+| `/api/led/on` | POST | Enable LED output |
+| `/api/led/off` | POST | Disable LED output |
+| `/api/queue` | GET | Task scheduler state |
+| `/api/reboot` | POST | Reboot the device |
+
 ## Development Roadmap
 
 This roadmap outlines the steps to build the `v1.0` Python API.
