@@ -298,6 +298,18 @@
                 <canvas id="network-canvas"></canvas>
                 <div style="position:absolute; bottom:5px; right:10px; font-size:0.7rem; color:#444;">Live Topology</div>
             </div>
+
+            <!-- Queue Status -->
+            <div id="queue-status-container" style="margin-top:20px; padding:15px; background:var(--card-color); border:1px solid var(--border-color); border-radius:5px;">
+                <h4 style="margin-top:0; border-bottom:1px solid #333; padding-bottom:5px;">Current Queue Status</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9rem;">
+                    <div>Current Task: <span id="q-task" style="color:var(--accent-color)">-</span></div>
+                    <div>Plugin: <span id="q-plugin" style="color:#aaa">-</span></div>
+                    <div>Duration: <span id="q-duration">-</span></div>
+                    <div>Elapsed: <span id="q-elapsed">-</span></div>
+                    <div>Queue Depth: <span id="q-depth">-</span></div>
+                </div>
+            </div>
         </div>
 
         <!-- Tab Content: Task View -->
@@ -327,9 +339,10 @@
 
         <!-- Tab Content: Logs -->
         <div id="tab-logs" class="tab-content" style="display:none; flex-direction:column;">
+            <h3 style="margin-top:0">Logs</h3>
             <div class="sub-tabs">
-                <button class="sub-tab-btn active" onclick="switchLogMode('tail')">Live (Tail)</button>
-                <button class="sub-tab-btn" onclick="switchLogMode('head')">Startup (Head)</button>
+                <button class="sub-tab-btn active" onclick="switchLogMode('tail')" title="View current runtime logs (last 50 entries)">Tail</button>
+                <button class="sub-tab-btn" onclick="switchLogMode('head')" title="View boot sequence logs (first 50 entries)">Head</button>
             </div>
             
             <div id="log-container-tail" class="log-container active">
@@ -496,6 +509,16 @@
                     }
                 }
                 
+                // --- PROCESS QUEUE STATUS ---
+                if (data.queue && data.queue.current) {
+                    const q = data.queue.current;
+                    document.getElementById('q-task').innerText = q.task || "Idle";
+                    document.getElementById('q-plugin').innerText = q.plugin || "SystemIdle";
+                    document.getElementById('q-duration').innerText = q.duration > 0 ? q.duration + "ms" : "Indefinite";
+                    document.getElementById('q-elapsed').innerText = q.elapsed + "ms";
+                    document.getElementById('q-depth').innerText = data.queue.depth || 0;
+                }
+
                 // --- PROCESS AGGREGATED DATA ---
                 
                 // 1. Logs

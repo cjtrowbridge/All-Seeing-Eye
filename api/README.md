@@ -61,11 +61,31 @@ All API endpoints must return helpful error messages for 400-series client error
 ### 1. General Status
 *   **Endpoint:** `/api/status`
 *   **Method:** `GET`
-*   **Description:** Returns the complete system state. To reduce network load, this endpoint aggregates:
-    *   System Health (Uptime, Heap, Build ID)
-    *   Peer List (Discovered neighbors)
-    *   Recent Logs (Last 50 entries)
-    *   Active Task Status
+*   **Description:** Returns the complete system state including health, logs, peers, AND current queue execution details.
+    *   **Response Example**:
+    ```json
+    {
+      "uptime": 12345,
+      "heap_free": 150000,
+      "plugin": "Scanner",
+      "clusterName": "Alpha",
+      "status": "Working: Scanner",
+      "task": "Broadband Sweep",
+      "queue": {
+          "depth": 2,
+          "current": {
+              "id": "uuid-1234",
+              "plugin": "Scanner",
+              "task": "Broadband Sweep",
+              "elapsed": 500,
+              "duration": 5000
+          }
+      },
+      "led": { "power": true, "color": { "r": 0, "g": 255, "b": 0 } },
+      "peers": [ ... ],
+      "logs": [ ... ]
+    }
+    ```
 
 ### 2. Task Management
 *   **Endpoint:** `/api/queue`

@@ -362,6 +362,17 @@ String WebServerManager::getCachedStatus() {
     doc["task"] = PluginManager::instance().getActiveTaskName();
     doc["clusterName"] = Config::instance().getString("cluster", "Default");
 
+    // Queue Status
+    RadioTask current = Scheduler::instance().getCurrentTask();
+    JsonObject queueObj = doc.createNestedObject("queue");
+    JsonObject qCurr = queueObj.createNestedObject("current");
+    qCurr["id"] = current.id;
+    qCurr["plugin"] = current.pluginName;
+    qCurr["task"] = current.taskName;
+    qCurr["elapsed"] = millis() - current.startTime;
+    qCurr["duration"] = current.durationMs;
+    queueObj["depth"] = Scheduler::instance().getQueue().size();
+
     // Aggregated Data
     JsonArray peers = doc.createNestedArray("peers");
     PeerManager::instance().populatePeers(peers);
