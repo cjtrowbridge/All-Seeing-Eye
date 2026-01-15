@@ -239,10 +239,13 @@ The physical enclosure is designed programmatically using **OpenSCAD**. This ens
 * ESP-32 3-pack with IPX MHF1 connector ([$17.99](https://amzn.to/3YyJqLl))
 * CC1101 module 3-pack ([$22.99](https://amzn.to/4qEJl4S))
 * IPX MHF1 to SMA Cable 5-pack ([$8.29](https://amzn.to/3NbLDdm))
+* Jumper wires (male-female) (there are infinite options here but there are what i used) ([$6.98](https://amzn.to/4qsRIkg))
 * Heltec v3 Meshtastic Node (optional, any meshtastic node with IPX MHF1 connector will do) ([$21.99](https://amzn.to/49MXC9Y))
 * GY-NEO6MV2 GPS Module (optional) ([$9.99](https://amzn.to/3NpCHRz))
 * 2.4ghz wifi antenna 4-pack (optional, any wifi antenna with SMA connector will do) ([$8.69](https://amzn.to/4szIt3d))
 * 915mhz antenna 2-pack (optional, any 915mhz antenna with SMA connector will do) ([$9.99](https://amzn.to/3LGUaV7))
+* SMA Extensions 2-pack (optional, but its going to hard to fit everything without these [$6.99](https://amzn.to/45Ou0Xd))
+* Self-advesive breadboard (optional) [$8.99](https://amzn.to/49mhwbJ)
 
 
 
