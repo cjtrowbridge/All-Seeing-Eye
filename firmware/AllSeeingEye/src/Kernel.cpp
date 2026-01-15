@@ -10,6 +10,8 @@
 #include "RingBuffer.h"
 #include "PluginManager.h"
 #include "Scheduler.h"
+#include <time.h>
+#include <esp_sntp.h>
 
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
@@ -51,6 +53,9 @@ void Kernel::setup() {
     // 6. Network & WiFi
     setupWiFi();
     setupOTA();
+
+    // 6.5 Time Sync (SNTP)
+    setupTimeSync();
 
     // 7. Web Server
     WebServerManager::instance().begin();
@@ -190,6 +195,25 @@ void Kernel::setupWiFi() {
     }
 }
 
+void Kernel::setupTimeSync() {
+    String timezone = Config::instance().getTimezone();
+    applyTimezone(timezone);
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Logger::instance().warn("Kernel", "Skipping SNTP init: WiFi not connected");
+        return;
+    }
+
+    Logger::instance().info("Kernel", "Configuring SNTP: %s", timezone.c_str());
+    configTzTime(timezone.c_str(), "pool.ntp.org", "time.nist.gov");
+    sntp_set_sync_interval(60 * 60 * 1000);
+}
+
+void Kernel::applyTimezone(const String& timezone) {
+    setenv("TZ", timezone.c_str(), 1);
+    tzset();
+}
+
 void Kernel::setupOTA() {
     String hostname = Config::instance().getHostname();
     ArduinoOTA.setHostname(hostname.c_str());
@@ -226,6 +250,26 @@ void Kernel::setupOTA() {
 
     ArduinoOTA.begin();
     Logger::instance().info("Kernel", "OTA Service Started");
+}
+
+bool Kernel::isTimeSynced() {
+    time_t now = time(nullptr);
+    if (now <= 0) {
+        return false;
+    }
+
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    int year = timeinfo.tm_year + 1900;
+    return year > 2025;
+}
+
+time_t Kernel::getEpochTime() {
+    return time(nullptr);
+}
+
+String Kernel::getTimezone() {
+    return Config::instance().getTimezone();
 }
 
 void Kernel::pluginTask(void* parameter) {

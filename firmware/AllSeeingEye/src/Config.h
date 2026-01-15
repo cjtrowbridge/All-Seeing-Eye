@@ -20,6 +20,10 @@ public:
     String getHostname();
     void setHostname(String hostname);
 
+    // Timezone Settings
+    String getTimezone();
+    void setTimezone(String timezone);
+
     // Generic Accessors
     String getString(const char* key, String defaultValue);
     void setString(const char* key, String value);

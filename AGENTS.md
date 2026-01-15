@@ -15,7 +15,7 @@ When making *any* change, you must review and update the following files if they
 2.  **`/AGENTS.md`**: Organizational structure, API standards, or operational protocols.
 3.  **`/firmware/README.md`**: Firmware logic, dependencies, networking, or setup instructions.
 4.  **`/api/README.md`**: API endpoints, payloads, or Python client implementation details.
-5.  **`/api/playbooks/*.md`**: Any standard operating procedures or workflows that may be altered by the change.
+5.  **`/playbooks/*.md`**: Any standard operating procedures or workflows that may be altered by the change.
 
 ## 2. STRICT REGULATORY COMPLIANCE
 
@@ -38,7 +38,7 @@ This system was originally architected and built by vast multi-trillion paramete
 *   **Role**: Your role is that of a precise, obedient operator, not a lead architect.
 
 ### The Protocol
-1.  **Seek Playbooks First**: When presented with a task, your **first action** must be to search `/api/playbooks/` for a relevant guide.
+1.  **Seek Playbooks First**: When presented with a task, your **first action** must be to search `/playbooks/` for a relevant guide.
 2.  **Stick to the Script**: If a playbook exists, follow it step-by-step. Do not deviate.
 3.  **Wait for Long Operations (Synchronous Execution)**: When running build scripts, compilations, or deployments (e.g., `upload_ota.ps1`), you must ensure the command is executed synchronously.
     *   **Tool Requirement**: You MUST set `isBackground` to `false` when calling `run_in_terminal`.
@@ -54,6 +54,12 @@ This system was originally architected and built by vast multi-trillion paramete
 
 The repository is divided into three primary domains, each serving a distinct phase of the system's lifecycle:
 
+*   **Project Management & Execution**
+    *   **Roadmaps (`/README.md`)**: The `README.md` files in each directory are the **Authoritative Source of Truth for Roadmaps**. They define *what* work needs to be done, decomposed into atomic sub-tasks.
+    *   **Playbooks (`/playbooks`)**: The contents of this directory are the **Authoritative Source of Truth for Execution**. They define *how* specific types of work must be carried out.
+        *   **Rationale**: Strict adherence to playbooks is required to avoid unintended consequences such as lack of logging, lack of consistency, lack of complete integration, or lack of documentation.
+        *   **Constraint**: All playbooks must live in the root `/playbooks` directory. They generally should NOT be scattered in subdirectories (e.g., `/api/playbooks` is invalid). All agents must check only the root `/playbooks` folder.
+
 *   **Design & Build (`/3d models`)**
     *   Contains physical engineering artifacts: OpenSCAD models, STL files, DWG drawings, and assembly diagrams.
     *   Subdirectories: `design/` (Source), `build/` (Exported Artifacts).
@@ -66,7 +72,7 @@ The repository is divided into three primary domains, each serving a distinct ph
 
 *   **API & Client (`/api`)**
     *   Contains Python libraries, scripts, and interface documentation.
-    *   **Agent Playbooks (`/api/playbooks`)**: Standard operating procedures and checklists for agents to perform complex tasks (e.g., "Troubleshoot Connectivity", "Deploy New Feature").
+    *   **Agent Playbooks (`/playbooks`)**: Standard operating procedures and checklists for agents to perform complex tasks (e.g., "Troubleshoot Connectivity", "Deploy New Feature").
     *   Focus: Providing a bridge for Desktop users and LLMs to interact with, control, and monitor the cluster.
 
 ## 5. Cluster Architecture and Operation

@@ -56,6 +56,14 @@ void Config::setHostname(String hostname) {
     _prefs.putString("hostname", hostname);
 }
 
+String Config::getTimezone() {
+    return _prefs.getString("timezone", "America/Los_Angeles");
+}
+
+void Config::setTimezone(String timezone) {
+    _prefs.putString("timezone", timezone);
+}
+
 // Generic wrappers
 String Config::getString(const char* key, String defaultValue) {
     return _prefs.getString(key, defaultValue);
@@ -86,6 +94,9 @@ String Config::getAllAsJson() {
     // Cluster Config
     doc["cluster"] = getString("cluster", "Default");
     doc["description"] = getString("description", "");
+
+    // Timezone
+    doc["timezone"] = getTimezone();
     
     // Peer Discovery
     doc["peer_ignore_hours"] = getInt("peer_ignore_hours", 12);
@@ -128,6 +139,11 @@ bool Config::updateFromJson(String jsonBody) {
     // Update Description
     if (doc.containsKey("description")) {
         setString("description", doc["description"].as<String>());
+    }
+
+    // Update Timezone
+    if (doc.containsKey("timezone")) {
+        setTimezone(doc["timezone"].as<String>());
     }
 
     // Peer Discovery
