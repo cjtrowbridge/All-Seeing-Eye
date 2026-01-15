@@ -138,6 +138,45 @@ void WebServerManager::setupRoutes() {
     });
 
     // --------------------------------------------------
+    // API: LED Control
+    // --------------------------------------------------
+    
+    // GET /api/led?r=255&g=0&b=0
+    _server.on("/api/led", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(request->hasParam("r") && request->hasParam("g") && request->hasParam("b")) {
+            int r = request->getParam("r")->value().toInt();
+            int g = request->getParam("g")->value().toInt();
+            int b = request->getParam("b")->value().toInt();
+            HAL::instance().setLed(r, g, b);
+        }
+        
+        // Return Status
+        JsonDocument doc;
+        doc["power"] = HAL::instance().getLedPower();
+        JsonObject color = doc.createNestedObject("color");
+        uint32_t c = HAL::instance().getLedColor();
+        color["r"] = (c >> 16) & 0xFF;
+        color["g"] = (c >> 8) & 0xFF;
+        color["b"] = c & 0xFF;
+        
+        String res;
+        serializeJson(doc, res);
+        request->send(200, "application/json", res);
+    });
+
+    // POST /api/led/on
+    _server.on("/api/led/on", HTTP_POST, [](AsyncWebServerRequest *request){
+        HAL::instance().setLedPower(true);
+        request->send(200, "application/json", "{\"status\":\"success\", \"power\":true}");
+    });
+
+    // POST /api/led/off
+    _server.on("/api/led/off", HTTP_POST, [](AsyncWebServerRequest *request){
+        HAL::instance().setLedPower(false);
+        request->send(200, "application/json", "{\"status\":\"success\", \"power\":false}");
+    });
+
+    // --------------------------------------------------
     // API: Queue (Task Scheduler)
     // --------------------------------------------------
     _server.on("/api/queue", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -209,6 +248,16 @@ void WebServerManager::setupRoutes() {
         r6["path"] = "/api/peers";
         r6["method"] = "GET";
         r6["desc"] = "Get discovered peers list";
+
+        JsonObject rLed = routes.add<JsonObject>();
+        rLed["path"] = "/api/led";
+        rLed["method"] = "GET";
+        rLed["desc"] = "Set LED usage: /api/led?r=255&g=0&b=0";
+
+        JsonObject rPower = routes.add<JsonObject>();
+        rPower["path"] = "/api/led/on";
+        rPower["method"] = "POST";
+        rPower["desc"] = "Enable LED output";
 
         JsonObject r7 = routes.add<JsonObject>();
         r7["path"] = "/api/queue";
@@ -285,6 +334,15 @@ String WebServerManager::getCachedStatus() {
     doc["rb_usage"] = RingBuffer::instance().available();
 
     doc["plugin"] = PluginManager::instance().getActivePluginName();
+
+    // LED Status
+    JsonObject led = doc.createNestedObject("led");
+    led["power"] = HAL::instance().getLedPower();
+    JsonObject color = led.createNestedObject("color");
+    uint32_t c = HAL::instance().getLedColor();
+    color["r"] = (c >> 16) & 0xFF;
+    color["g"] = (c >> 8) & 0xFF;
+    color["b"] = c & 0xFF;
 
     // Calculate System Status
     String statusMsg = "Ready";

@@ -27,6 +27,7 @@ void HAL::init() {
     _pixels = new Adafruit_NeoPixel(NUM_PIXELS, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
     _pixels->begin();
     _pixels->setBrightness(50);
+    _ledPower = true; // Default On
     setLed(0, 0, 0); // Off
 
     // SPI Init
@@ -50,10 +51,37 @@ void HAL::init() {
 }
 
 void HAL::setLed(uint8_t r, uint8_t g, uint8_t b) {
-    if (_pixels) {
+    // 1. Update State
+    _r = r; _g = g; _b = b;
+
+    // 2. Apply to HW only if Powered
+    if (_pixels && _ledPower) {
         _pixels->setPixelColor(0, _pixels->Color(r, g, b));
         _pixels->show();
     }
+}
+
+void HAL::setLedPower(bool on) {
+    _ledPower = on;
+    if (on) {
+        // Restore current color
+        setLed(_r, _g, _b);
+    } else {
+        // Force Off (but don't lose color state)
+        if (_pixels) {
+            _pixels->setPixelColor(0, 0); // Black
+            _pixels->show();
+        }
+    }
+}
+
+bool HAL::getLedPower() {
+    return _ledPower;
+}
+
+uint32_t HAL::getLedColor() {
+    // Return standard RGB integer
+    return ((uint32_t)_r << 16) | ((uint32_t)_g << 8) | _b;
 }
 
 CC1101* HAL::getRadio() {

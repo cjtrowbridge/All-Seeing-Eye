@@ -85,7 +85,22 @@ All API endpoints must return helpful error messages for 400-series client error
 *   **Method:** `GET`
 *   **Description:** Returns the first 50 logs from the boot sequence (Head). Valid until reboot.
 
-### 5. Discovery
+### 5. LED Control
+*   **Endpoint:** `/api/led`
+*   **Method:** `GET`
+*   **Params:** `r` (0-255), `g` (0-255), `b` (0-255)
+*   **Description:** Updates the global LED color state. This will only be visible if the LED is powered ON by the user.
+    *   Example: `/api/led?r=255&g=0&b=128`
+
+*   **Endpoint:** `/api/led/on`
+*   **Method:** `POST`
+*   **Description:** Enables physical LED output (User Override).
+
+*   **Endpoint:** `/api/led/off`
+*   **Method:** `POST`
+*   **Description:** Disables physical LED output (User Override).
+
+### 6. Discovery
 *   **Endpoint:** `/api`
 *   **Method:** `GET`
 *   **Description:** Self-discovery endpoint listing all available routes.

@@ -7,7 +7,7 @@
     <style>
         :root {
             --bg-color: #121212;
-            --panel-color: #1e1e1e;
+            --card-color: #1e1e1e;
             --text-color: #e0e0e0;
             --accent-color: #bb86fc;
             --danger-color: #cf6679;
@@ -83,9 +83,47 @@
         }
         .tab-btn:hover { background: #222; color: #fff; }
         .tab-btn.active {
+            border-bottom: 2px solid #bb86fc;
+            color: #bb86fc;
+        }
+        
+        /* Sub-tabs for Logs */
+        .sub-tabs {
+            display: flex;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+        .sub-tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #888;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+        .sub-tab-btn.active {
+            color: #ffb74d; /* Orange for logs */
             background: #252525;
-            color: var(--accent-color);
-            border-bottom: 2px solid var(--accent-color);
+        }
+        .log-container {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        .log-container.active {
+            display: flex;
+            flex-direction: column;
+        }
+        .log-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
         }
 
         .tab-content {
@@ -288,9 +326,22 @@
         </div>
 
         <!-- Tab Content: Logs -->
-        <div id="tab-logs" class="tab-content" style="display:none;"> <!-- Note: display handled by JS, but inline style helps initial flash -->
-            <div id="log-list">
-                <div style="text-align:center; color:#444; margin-top:20px;">Waiting for logs...</div>
+        <div id="tab-logs" class="tab-content" style="display:none; flex-direction:column;">
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" onclick="switchLogMode('tail')">Live (Tail)</button>
+                <button class="sub-tab-btn" onclick="switchLogMode('head')">Startup (Head)</button>
+            </div>
+            
+            <div id="log-container-tail" class="log-container active">
+                <div id="log-list" class="log-box">
+                    <div style="text-align:center; color:#444; margin-top:20px;">Waiting for live logs...</div>
+                </div>
+            </div>
+
+            <div id="log-container-head" class="log-container">
+                <div id="log-list-head" class="log-box">
+                    <div style="text-align:center; color:#444; margin-top:20px;">Loading startup logs...</div>
+                </div>
             </div>
         </div>
         
@@ -330,6 +381,44 @@
             if(tabId === 'clusters') btns[0].classList.add('active');
             if(tabId === 'task') btns[1].classList.add('active');
             if(tabId === 'logs') btns[2].classList.add('active');
+        }
+
+        // Log Mode Switcher
+        function switchLogMode(mode) {
+            // Buttons
+            document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+            // Containers
+            document.querySelectorAll('.log-container').forEach(c => c.classList.remove('active'));
+
+            if (mode === 'tail') {
+                document.querySelectorAll('.sub-tab-btn')[0].classList.add('active');
+                document.getElementById('log-container-tail').classList.add('active');
+            } else {
+                document.querySelectorAll('.sub-tab-btn')[1].classList.add('active');
+                document.getElementById('log-container-head').classList.add('active');
+                fetchHeadLogs(); // Load on demand (idempotent)
+            }
+        }
+
+        let headLogsLoaded = false;
+        async function fetchHeadLogs() {
+            if (headLogsLoaded) return; // Only fetch once
+            
+            try {
+                const res = await fetch('/api/logs/head');
+                const logs = await res.json();
+                const container = document.getElementById('log-list-head');
+                
+                if (Array.isArray(logs) && logs.length > 0) {
+                    container.innerHTML = logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+                } else {
+                    container.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No startup logs recorded.</div>';
+                }
+                headLogsLoaded = true;
+            } catch(e) {
+                console.error("Failed to fetch head logs", e);
+                document.getElementById('log-list-head').innerHTML = '<div style="color:var(--danger-color); padding:20px;">Error loading logs.</div>';
+            }
         }
 
         // State
