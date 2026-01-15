@@ -115,6 +115,28 @@ void WebServerManager::setupRoutes() {
         }
     });
 
+    // API: System Head Logs (Startup Logs)
+    // NOTE: Must be registered BEFORE /api/logs to avoid routing shadow
+    _server.on("/api/logs/head", HTTP_GET, [](AsyncWebServerRequest *request){
+        static unsigned long lastHeadLogsLog = 0;
+        if (millis() - lastHeadLogsLog > 5000) {
+            Logger::instance().info("API", "GET /api/logs/head");
+            lastHeadLogsLog = millis();
+        }
+        JsonDocument doc;
+        JsonArray logs = doc.to<JsonArray>();
+        
+        std::deque<String> logBuffer = Logger::instance().getHeadLogs();
+        
+        for(const auto& line : logBuffer) {
+            logs.add(line);
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
     // API: System Logs
     _server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
         static unsigned long lastLogsLog = 0;
@@ -128,27 +150,6 @@ void WebServerManager::setupRoutes() {
         std::deque<String> logBuffer = Logger::instance().getLogs();
         
         // Return logs in insertion order
-        for(const auto& line : logBuffer) {
-            logs.add(line);
-        }
-        
-        String response;
-        serializeJson(doc, response);
-        request->send(200, "application/json", response);
-    });
-
-    // API: System Head Logs (Startup Logs)
-    _server.on("/api/logs/head", HTTP_GET, [](AsyncWebServerRequest *request){
-        static unsigned long lastHeadLogsLog = 0;
-        if (millis() - lastHeadLogsLog > 5000) {
-            Logger::instance().info("API", "GET /api/logs/head");
-            lastHeadLogsLog = millis();
-        }
-        JsonDocument doc;
-        JsonArray logs = doc.to<JsonArray>();
-        
-        std::deque<String> logBuffer = Logger::instance().getHeadLogs();
-        
         for(const auto& line : logBuffer) {
             logs.add(line);
         }

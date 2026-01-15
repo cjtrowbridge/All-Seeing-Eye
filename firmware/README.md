@@ -48,11 +48,28 @@
 - [x] WebSocket/Poll-based logs
 - [x] **UI Refactor**: Moves stats to footer, fix overlap (Tabbed View).
 - [x] **Navbar Enhancements**: Cluster Status with "Sparkle" indicators.
-- [ ] **Spectrum Visualization**: Connect real RSSI data to canvas.
-- [x] **Network Map**: Force-directed graph in Cluster Tab with clickable nodes.
-- [x] **Performance**: Consolidated polling to single `/api/status` endpoint.
-- [x] **Auto-Update**: UI detects new firmware version via Build ID and auto-reloads.
-- [ ] **Config UI**: Connect forms to backend Config API.
+
+# Web Interface & Topology Map
+
+The Web Dashboard (`/index.html`) includes a live **Topology Map** visualizing the mesh network.
+
+## Legend Reference
+
+| Element | Color | Description |
+| :--- | :--- | :--- |
+| **Self (Dot)** | `Cyan (#03dac6)` | The node currently hosting the web interface. |
+| **Peer (Dot)** | `Purple (#bb86fc)` | A peer node that is currently **Online** and responsive. |
+| **Offline (Dot)** | `Gray (#444)` | A peer node that has timed out (stale) or is unresponsive. |
+| **LAN Link** | `Blue (#2196F3)` | A direct network connection (WiFi or Wired) established via mDNS discovery. |
+| **Ranging** | `Red (#cf6679)` | (Planned) A physical RF ranging measurement between nodes. |
+
+## Interaction
+
+*   **Click Node**: Navigate to that node's WebUI (`http://[hostname].local`).
+*   **Hover**: View tooltip (currently hostname).
+*   **Physics**: The map uses a force-directed graph (d3-style) where nodes repel each other but are bound by links.
+
+# Roadmap Continued
 
 ## Phase 4: VLBI Clustering (Backend Completed)
 - [x] **Core Logic**: Default Kernel state is now `SystemIdle` (POST -> Idle).
@@ -278,11 +295,15 @@ The Web UI includes a "Network Map" canvas to visualize the complex relationship
     *   *VPN*: Long-distance links connecting disparate subnets.
     *   *Indirect*: Connections reported by a peer that the local node cannot see directly.
 
-### 7.2 Visualization Logic
-The dashboard aggregates peer lists from all reachable nodes to build a "composite truth" of the network.
-*   **Local View**: What the current node sees directly.
-*   **Reported View**: What connected peers claim to see (e.g., "I am connected to Node X, which you can't see").
-*   **Rendering**:
-    *   Nodes are color-coded by Transport Type or Cluster ID.
-    *   Edges can be solid (Direct) or dashed (Indirect/Reported).
-    *   Uses a force-directed layout to naturally cluster well-connected groups (LANs) while showing the "bridges" (Mesh/VPN links) between them.
+### 7.2 Link Types (Edge Coloring)
+The visualization distinguishes different types of relationships between nodes using color coding:
+
+*   **Blue Links (Peer Visibility)**: 
+    *   Represent logical visibility (Node A lists Node B in its peer registry).
+    *   Length is arbitrary (physics-based force layout).
+    *   Derived from `GET /api/peers` data.
+
+*   **Red Links (Ranging Data) [Planned]**:
+    *   Will represent physical distance measurements (Time-of-Flight or RSSI-Trilateration).
+    *   Length is constrained to scale (e.g., 100px = 1 meter).
+    *   Will include a text label showing the raw distance (e.g., "4.2m").
