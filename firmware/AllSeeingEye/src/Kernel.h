@@ -8,6 +8,7 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include <time.h>
 
 class Kernel {
 public:
@@ -19,6 +20,9 @@ public:
     // Status reporting
     void getStatus(JsonObject& doc);
     bool isHardwareHealthy() { return _hardwareHealthy; }
+    bool isTimeSynced();
+    time_t getEpochTime();
+    String getTimezone();
 
 private:
     Kernel();
@@ -27,6 +31,8 @@ private:
     void setupLittleFS();
     void setupWiFi();
     void setupOTA();
+    void setupTimeSync();
+    void applyTimezone(const String& timezone);
     
     // Core 1 Task
     static void pluginTask(void* parameter);

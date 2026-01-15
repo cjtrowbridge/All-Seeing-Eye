@@ -33,17 +33,24 @@ void WebServerManager::setupRoutes() {
 
     // API: Status
     _server.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest *request){
+        static unsigned long lastStatusLog = 0;
+        if (millis() - lastStatusLog > 10000) {
+            Logger::instance().info("API", "GET /api/status");
+            lastStatusLog = millis();
+        }
         request->send(200, "application/json", this->getCachedStatus());
     });
 
     // API: Configuration (GET)
     _server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api/config");
         String response = Config::instance().getAllAsJson();
         request->send(200, "application/json", response);
     });
 
     // API: Configuration (POST)
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/api/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        Logger::instance().info("API", "POST /api/config");
         String jsonStr;
         serializeJson(json, jsonStr);
         
@@ -60,6 +67,7 @@ void WebServerManager::setupRoutes() {
 
     // API: File System Index
     _server.on("/api/fs", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api/fs");
         JsonDocument doc;
         JsonArray files = doc.to<JsonArray>();
 
@@ -79,6 +87,7 @@ void WebServerManager::setupRoutes() {
 
     // API: Peers (Discovery)
     _server.on("/api/peers", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api/peers");
         // Passive Discovery: Check who is calling us
         PeerManager::instance().trackIncomingRequest(request->client()->remoteIP().toString());
         
@@ -90,6 +99,7 @@ void WebServerManager::setupRoutes() {
     _server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest *request){
         if (request->hasParam("target")) {
             String target = request->getParam("target")->value();
+            Logger::instance().info("API", "GET /api/ping target=%s", target.c_str());
             bool result = PeerManager::instance().pingHost(target);
             
             JsonDocument doc;
@@ -100,12 +110,18 @@ void WebServerManager::setupRoutes() {
             serializeJson(doc, res);
             request->send(200, "application/json", res);
         } else {
+            Logger::instance().warn("API", "GET /api/ping missing target");
             request->send(400, "application/json", "{\"error\":\"Missing 'target' parameter\"}");
         }
     });
 
     // API: System Logs
     _server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
+        static unsigned long lastLogsLog = 0;
+        if (millis() - lastLogsLog > 5000) {
+            Logger::instance().info("API", "GET /api/logs");
+            lastLogsLog = millis();
+        }
         JsonDocument doc;
         JsonArray logs = doc.to<JsonArray>();
         
@@ -123,6 +139,11 @@ void WebServerManager::setupRoutes() {
 
     // API: System Head Logs (Startup Logs)
     _server.on("/api/logs/head", HTTP_GET, [](AsyncWebServerRequest *request){
+        static unsigned long lastHeadLogsLog = 0;
+        if (millis() - lastHeadLogsLog > 5000) {
+            Logger::instance().info("API", "GET /api/logs/head");
+            lastHeadLogsLog = millis();
+        }
         JsonDocument doc;
         JsonArray logs = doc.to<JsonArray>();
         
@@ -147,7 +168,10 @@ void WebServerManager::setupRoutes() {
             int r = request->getParam("r")->value().toInt();
             int g = request->getParam("g")->value().toInt();
             int b = request->getParam("b")->value().toInt();
+            Logger::instance().info("API", "GET /api/led r=%d g=%d b=%d", r, g, b);
             HAL::instance().setLed(r, g, b);
+        } else {
+            Logger::instance().warn("API", "GET /api/led missing rgb params");
         }
         
         // Return Status
@@ -166,12 +190,14 @@ void WebServerManager::setupRoutes() {
 
     // POST /api/led/on
     _server.on("/api/led/on", HTTP_POST, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "POST /api/led/on");
         HAL::instance().setLedPower(true);
         request->send(200, "application/json", "{\"status\":\"success\", \"power\":true}");
     });
 
     // POST /api/led/off
     _server.on("/api/led/off", HTTP_POST, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "POST /api/led/off");
         HAL::instance().setLedPower(false);
         request->send(200, "application/json", "{\"status\":\"success\", \"power\":false}");
     });
@@ -180,6 +206,7 @@ void WebServerManager::setupRoutes() {
     // API: Queue (Task Scheduler)
     // --------------------------------------------------
     _server.on("/api/queue", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api/queue");
         JsonDocument doc;
         
         // Current Task
@@ -211,6 +238,7 @@ void WebServerManager::setupRoutes() {
     // 2. Generic API Endpoint (Discovery)
     // --------------------------------------------------
     _server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api");
         JsonDocument doc;
         JsonArray routes = doc.to<JsonArray>();
 
@@ -293,6 +321,7 @@ void WebServerManager::setupRoutes() {
 
     // API: Reboot
     _server.on("/api/reboot", HTTP_POST, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "POST /api/reboot");
         request->send(200, "application/json", "{\"status\":\"success\", \"message\":\"Rebooting...\"}");
         // Delay slightly to let the response flush
         // We can't delay in async handler easily, but ESP.restart() is abrupt.
@@ -330,6 +359,9 @@ String WebServerManager::getCachedStatus() {
     doc["hostname"] = Config::instance().getHostname();
     doc["description"] = Config::instance().getString("description", "");
     doc["build_id"] = BUILD_ID;
+    doc["timezone"] = Kernel::instance().getTimezone();
+    doc["time"] = (long long)Kernel::instance().getEpochTime();
+    doc["ntp_sync"] = Kernel::instance().isTimeSynced();
     
     doc["rb_capacity"] = RingBuffer::instance().capacity();
     doc["rb_usage"] = RingBuffer::instance().available();

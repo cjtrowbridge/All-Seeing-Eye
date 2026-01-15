@@ -376,6 +376,10 @@
                         <label>Cluster</label>
                         <input type="text" id="cfg-cluster" placeholder="Default">
                     </div>
+                    <div class="control-group">
+                        <label>Timezone (IANA)</label>
+                        <input type="text" id="cfg-timezone" placeholder="America/Los_Angeles">
+                    </div>
                     <button id="btn-update-identity" style="margin-top:10px; width:100%;">UPDATE IDENTITY</button>
                 </div>
                 
@@ -559,7 +563,7 @@
         // State
         const IP = window.location.hostname === "localhost" ? "allseeingeye.local" : window.location.hostname;
         // Local Device store
-        let myDevice = { hostname: "Loading...", description: "", ip: IP, status: "Unknown", cluster: "Default", online: true, isSelf: true };
+        let myDevice = { hostname: "Loading...", description: "", ip: IP, status: "Unknown", cluster: "Default", timezone: "America/Los_Angeles", online: true, isSelf: true };
         let currentBuildId = null; 
         
         // LED Config
@@ -597,6 +601,7 @@
             const desc = document.getElementById('cfg-desc').value;
             const host = document.getElementById('cfg-hostname').value;
             const clust = document.getElementById('cfg-cluster').value;
+            const tz = document.getElementById('cfg-timezone').value;
             
             if(!host) return alert("Hostname is required");
             
@@ -607,12 +612,14 @@
                     body: JSON.stringify({
                         description: desc,
                         hostname: host,
-                        cluster: clust
+                        cluster: clust,
+                        timezone: tz
                     })
                 });
                 const j = await res.json();
                 if(j.status === 'success') {
                     alert("Identity Updated. Rebooting may be required for Hostname changes.");
+                                        alert("Identity Updated. Reboot may be required for Hostname/Timezone changes.");
                     fetchStatus(); // Refresh
                 } else {
                     alert("Error: " + j.message);
@@ -686,6 +693,7 @@
                 myDevice.description = data.description || "";
                 myDevice.status = data.status || "Unknown";
                 myDevice.cluster = data.clusterName || "Default"; // Backend provides clusterName
+                myDevice.timezone = data.timezone || "America/Los_Angeles";
                 myDevice.task = data.task || "Unknown Task";
                 myDevice.lastProbe = Date.now(); // Self is always fresh
 
@@ -694,9 +702,11 @@
                 const descEl = document.getElementById('cfg-desc');
                 const hostEl = document.getElementById('cfg-hostname');
                 const clusterEl = document.getElementById('cfg-cluster');
+                const tzEl = document.getElementById('cfg-timezone');
                 if (descEl && actEl.id !== 'cfg-desc') descEl.value = myDevice.description;
                 if (hostEl && actEl.id !== 'cfg-hostname') hostEl.value = myDevice.hostname;
                 if (clusterEl && actEl.id !== 'cfg-cluster') clusterEl.value = myDevice.cluster;
+                if (tzEl && actEl.id !== 'cfg-timezone') tzEl.value = myDevice.timezone;
 
                 setText('connection-status', "ONLINE");
                 const connEl = document.getElementById('connection-status');

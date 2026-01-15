@@ -20,6 +20,7 @@ This playbook defines the "Full Stack" development process for adding a new capa
     *   **File**: `firmware/AllSeeingEye/src/Kernel.cpp` (or a specific Plugin).
     *   **Action**: Add the handler in `setupWebServer()`.
     *   *Code*: `server.on("/api/led/blink", HTTP_POST, ...)`
+    *   **Logging Requirement**: Every API handler must log request receipt and any errors, plus all significant state changes and success paths (so the feature is observable in `/api/logs` and `/api/status`).
     *   **Test**: Compile and deploy to one node. Verify with `curl` or Postman.
 
 3.  **Implement Python Client Wrapper**
@@ -32,7 +33,7 @@ This playbook defines the "Full Stack" development process for adding a new capa
         ```
 
 4.  **Update Agent Playbooks (If needed)**
-    *   If this feature changes how we deploy or troubleshoot (e.g., a new "Safe Mode"), create or update the relevant playbook in `api/playbooks/`.
+    *   If this feature changes how we deploy or troubleshoot (e.g., a new "Safe Mode"), create or update the relevant playbook in `playbooks/`.
 
 5.  **Final Verification**
     *   Run a Python script calling the new method.

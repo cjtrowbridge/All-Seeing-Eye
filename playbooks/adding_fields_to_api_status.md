@@ -14,6 +14,7 @@ To minimize overhead on the single-threaded ESP32 web server, the `/api/status` 
 ## Prerequisites
 *   The data you want to expose must be accessible from a global context (e.g., Singleton `instance()`, static variable, or hardware read).
 *   Avoid blocking operations (e.g., long I/O, heavy computation) inside the status generation logic.
+*   Any new or modified API handlers must log request receipt and error conditions via `Logger::instance()`.
 
 ## Step-by-Step Instructions
 

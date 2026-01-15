@@ -29,6 +29,7 @@ The All Seeing Eye firmware uses a Plugin architecture. Tasks like "Idle" or "Sp
         // ... implementations ...
     };
     ```
+    *   **Logging Requirement**: Emit logs for task start, key milestones, and failure paths using `Logger::instance()`.
 
 3.  **Register with Kernel**
     *   **File**: `firmware/AllSeeingEye/src/Kernel.cpp`.

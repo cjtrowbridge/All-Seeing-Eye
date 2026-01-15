@@ -1,4 +1,5 @@
 #include "Logger.h"
+#include <time.h>
 
 Logger& Logger::instance() {
     static Logger _instance;
@@ -37,8 +38,21 @@ void Logger::error(const char* tag, const char* format, ...) {
 }
 
 void Logger::addLog(String level, const char* tag, const char* message) {
-    // Format: [Millis][Level][Tag] Message
-    String timestamp = String(millis());
+    // Format: [Time][Level][Tag] Message
+    String timestamp = "UNSYNCED";
+    time_t now = time(nullptr);
+    if (now > 0) {
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        int year = timeinfo.tm_year + 1900;
+        if (year > 2025) {
+            char timeBuf[32];
+            strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+            timestamp = String(timeBuf);
+        } else {
+            timestamp = String((long long)now);
+        }
+    }
     String logEntry = "[" + timestamp + "][" + level + "][" + String(tag) + "] " + String(message);
 
     // 1. Write to Serial (Standard Output)

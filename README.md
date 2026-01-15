@@ -27,6 +27,8 @@ This design document focuses on the **All-Seeing Eye Node** as a physical and co
 
 This project is intended to operate as a **VLBI (Very Long Baseline Interferometry) Cluster**. While individual nodes provide utility, the core value proposition is the synchronized collaboration of multiple distributed nodes to triangulate signals and build high-fidelity spectrum maps.
 
+To support synchronized sampling, nodes establish a shared wall-clock using **SNTP/NTP**. This time baseline enables cluster-wide coordination (e.g., aligned scan windows) and is a prerequisite for higher-order ranging and consensus behaviors.
+
 ## 2. Regulatory & Operational Posture
 
 **PASSIVE OBSERVATION ONLY**:

@@ -16,6 +16,7 @@
 4.  **Logging & Debugging**:
     -   **Rule**: Do NOT create ad-hoc text files (e.g., `output.txt`, `debug.txt`) in the repo. They clutter the git history.
     -   **Rule**: If you must dump output to a file, use the `.log` extension (e.g., `build.log`), as these are globally ignored by `.gitignore`.
+    -   **Rule**: Log timestamps use wall-clock time (NTP-synced) and fall back to Unix epoch seconds before sync.
 
 5.  **Regulatory Compliance (NO TX)**:
     -   **Rule**: The CC1101 radio must be operated in **RX (Receive) Mode ONLY**.
@@ -57,16 +58,16 @@
 - [x] **Core Logic**: Default Kernel state is now `SystemIdle` (POST -> Idle).
 - [x] **Unique Identity**:
     -   Hostnames: `allseeingeye-{hexid}.local` (from MAC address).
-- [ ] **Time Synchronization (Foundation)**:
-    - [ ] **SNTP Integration**: 
-        - [ ]  Configure `configTime` with `pool.ntp.org` and proper timezone handling (Los Angeles).
-        - [ ]  Implement `Kernel::isTimeSynced()` validator (Checks Year > 2025).
-        - [ ]  Enable time zone configuration via `/api/config` (string, e.g., "America/Los_Angeles") and persist in NVS
-        - [ ]  Make timezone editable in webui under device tab.
-    - [ ] **API Visibility**: 
-        - [ ]  Add `time` (Unix Epoch) and `ntp_sync` (bool) to `/api/status`.
-    - [ ] **Drift Management**: 
-        - [ ]  Configure re-sync interval (1hr).
+- [x] **Time Synchronization (Foundation)**:
+    - [x] **SNTP Integration**: 
+        - [x]  Configure `configTime` with `pool.ntp.org` and proper timezone handling (Los Angeles).
+        - [x]  Implement `Kernel::isTimeSynced()` validator (Checks Year > 2025).
+        - [x]  Enable time zone configuration via `/api/config` (string, e.g., "America/Los_Angeles") and persist in NVS
+        - [x]  Make timezone editable in webui under device tab.
+    - [x] **API Visibility**: 
+        - [x]  Add `time` (Unix Epoch) and `ntp_sync` (bool) to `/api/status`.
+    - [x] **Drift Management**: 
+        - [x]  Configure re-sync interval (1hr).
 - [x] **Discovery Protocol**:
     -   **Zero-Conf**: mDNS (`_allseeingeye._tcp`) auto-discovery.
     -   **Subnet Scanning**: Automatically scans local /24 subnet (1-254) if isolated.

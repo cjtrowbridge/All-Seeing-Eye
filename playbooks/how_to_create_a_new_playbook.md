@@ -15,7 +15,7 @@ This playbook outlines the standard procedure for an AI Agent to create a new op
     *   `firmware/README.md`: Understand the C++ implementation, networking logic, and current capabilities.
     *   `api/README.md`: Understand how the desktop client and LLMs interact with the cluster.
 3.  **Verify Current State**:
-    *   Check `api/playbooks/` to ensure a similar playbook does not already exist.
+    *   Check `playbooks/` to ensure a similar playbook does not already exist.
 
 ## 2. When to Create a Playbook
 
@@ -67,5 +67,5 @@ How to confirm the task was successful.
 
 ## 5. Finalizing
 
-1.  Save the file to `api/playbooks/`.
+1.  Save the file to `playbooks/`.
 2.  (Optional) If this is a major workflow, mention it in `AGENTS.md` under the "Agent Playbooks" section.

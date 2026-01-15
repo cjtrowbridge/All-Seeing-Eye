@@ -12,3 +12,4 @@ firmware/*.map
 
 # Deployment Configuration
 firmware/known_hosts.txt
+api/known_hosts.csv
