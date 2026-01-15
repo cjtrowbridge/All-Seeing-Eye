@@ -57,6 +57,16 @@
 - [x] **Core Logic**: Default Kernel state is now `SystemIdle` (POST -> Idle).
 - [x] **Unique Identity**:
     -   Hostnames: `allseeingeye-{hexid}.local` (from MAC address).
+- [ ] **Time Synchronization (Foundation)**:
+    - [ ] **SNTP Integration**: 
+        - [ ]  Configure `configTime` with `pool.ntp.org` and proper timezone handling (Los Angeles).
+        - [ ]  Implement `Kernel::isTimeSynced()` validator (Checks Year > 2025).
+        - [ ]  Enable time zone configuration via `/api/config` (string, e.g., "America/Los_Angeles") and persist in NVS
+        - [ ]  Make timezone editable in webui under device tab.
+    - [ ] **API Visibility**: 
+        - [ ]  Add `time` (Unix Epoch) and `ntp_sync` (bool) to `/api/status`.
+    - [ ] **Drift Management**: 
+        - [ ]  Configure re-sync interval (1hr).
 - [x] **Discovery Protocol**:
     -   **Zero-Conf**: mDNS (`_allseeingeye._tcp`) auto-discovery.
     -   **Subnet Scanning**: Automatically scans local /24 subnet (1-254) if isolated.
@@ -111,13 +121,24 @@
         - [ ] **Single-Hop**: Geolocate sender via RSSI-trilateration.
         - [ ] **Multi-Hop**: Estimate distance/vector via Hop Count + Last-Hop neighbor RSSI-trilateration.
         - [ ] **Topology Mapping**: Use traceroutes to build a map of the mesh web, pinning nodes that report location or where we can locate them via RSSI-trilateration.
+- [ ] **BLE Proximity & Consensus (Architecture)**:
+    - [ ] **Dual-Role Operation**: ESP32 acts as both GAP Peripheral (Beacon) and GAP Central (Scanner).
+        -   **Advertising**: Broadcasts `ClusterID` + `NodeID` + `TxPower` @ 1Hz.
+        -   **Scanning**: Periodic windows to detect peers.
+    - [ ] **Coexistence Strategy (Radio Time-Slicing)**:
+        -   **Interval**: 1 scan window (e.g., 200ms) every 5-10 seconds to protect Wi-Fi throughput.
+        -   **Adaptive Rate**: If RSSI variance < Threshold (Stationary) for 3 cycles, step down to 30s interval.
+    - [ ] **Synchronized Sampling (Natural Consensus)**:
+        -   Goal: Ensure all nodes measure each other at roughly the same moment for valid geometry.
+        -   Mechanism: Use NTP time modulo (e.g., `UnixTime % 10 == 0`) to align scan windows across the cluster without complex negotiation.
 - [ ] **Universal Telemetry Bus**:
     - [ ] Standardized polling for arbitrary sensors.
     - [ ] User-configurable announcement intervals.
     - [ ] Fallback Geolocation: Use attached GPS if available, else standard Wi-Fi/Radio fingerprinting.
 
 ## Phase 7: Distributed Coordination
-- [ ] **Time Synchronization**: NTP + microsecond-offset tracking for VLBI.
+- [ ] **Advanced Synchronization (VLBI)**:
+    - [ ] **Microsecond Precision**: Track sub-second drift against GPS PPS if available.
     - [ ] **Multi-Transport Sync**: Support sync via Wi-Fi (NTP/PTP) and Meshtastic/LoRa (Custom Beacon).
     - [ ] **Latency Compensation**: Measure RTT (Round Trip Time) to compensate for transmission delay/light-speed lag across different mediums.
     - [ ] **Drift Correction**: Continuous adjustment for local clock drift relative to cluster consensus.
