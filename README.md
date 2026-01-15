@@ -201,6 +201,14 @@ If the node is operating within an active Meshtastic mesh, it can utilize traffi
 *   **Trilateration**: With signals from 3+ distinct GPS-enabled peers, the node can estimate its position based on expected signal fade (Path Loss Models).
 *   **Single-Hop Constraint**: This technique relies on **direct (single-hop)** reception. Use of RSSI from relayed packets would result in calculating distance to the repeater, not the original sender, leading to gross errors. The system must verify the packet has not been hopped before using it for ranging.
 
+### 8.6 BLE Ranging & Live Topology Consensus
+To complement RF triangulation, newer iterations of the system employ BLE (Bluetooth Low Energy) for high-resolution proximity detection within the cluster itself.
+
+*   **Stationarity Detection**: By constantly monitoring the RSSI of known peers over BLE, the cluster can detect if the configuration is static or in motion. Stable RSSI values over N minutes imply a stationary deployment, triggering higher-precision, longer-integration RF tasks.
+*   **Short-Range Ranging (<20m)**: Standard WiFi/Sub-GHz RSSI is noisy. BLE advertising provides a separate, dedicated channel for "Ranging Beacons".
+    *   **Consensus**: If Node A sees Node B at -40dBm and Node C at -85dBm, and Node B sees Node C at -70dBm, the cluster can solve for the relative geometry of the triangle {A,B,C}.
+*   **Implementation**: This runs as a background task (`SystemIdlePlugin`) on the ESP32 core, independent of the CC1101 radio, ensuring it does not interrupt long-range spectral monitoring.
+
 ---
 
 ## 9. Overall Intent

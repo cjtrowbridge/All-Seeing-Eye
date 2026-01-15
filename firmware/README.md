@@ -77,6 +77,7 @@
              - [ ] If a GPS module is connected, use that.
         - [ ] **Native Approach (No GPS)**
              - [ ] **Relative Positioning (MDS)**: Broadcast/Receive packets between nodes in the cluster to build a relative distance map using RSSI.
+             - [ ] **BLE Ranging**: Use the ESP32's Bluetooth radio to range-find with peers and static beacons. Provides high-resolution close-range data (<20m) and helps detect movement vs. stationarity.
              - [ ] **Absolute Anchoring (WiFi)**: Scan nearby Wifi BSSIDs and query Geolocation API (15-30m absolute), then use the RSSI to each node in the cluster to determine the distance and relative position of our nodes versus the BSSIDs in order to locate all of our nodes.
         - [ ] **VLBI / TDOA (Macroscopic)**:
              - [ ] If the nodes in the cluster are sufficiently far apart, TDOA may be a feasible approach to triangulate position based on signal arrival times from known broadcast origins (e.g., FM Radio, TV Towers, Cell Towers).

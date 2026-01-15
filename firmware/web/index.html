@@ -129,6 +129,19 @@
             display: flex;
             flex-direction: column;
         }
+
+        /* Generic Sub-Tab Content Container */
+        .sub-tab-content {
+            display: none;
+            flex-direction: column;
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .sub-tab-content.active {
+            display: flex;
+        }
+
         .log-box {
             flex: 1;
             overflow-y: auto;
@@ -192,6 +205,20 @@
             border: 1px solid #333;
         }
 
+        .controls-container-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #222;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .task-sub-content {
+            padding-top: 20px;
+        }
+
         .control-group {
             display: flex;
             flex-direction: column;
@@ -252,10 +279,11 @@
                 display: grid !important;
                 grid-template-columns: 1fr 1fr 1fr;
                 grid-template-rows: 1fr 200px;
-                gap: 1px;
-                background: #333; /* Separator lines */
             }
-
+            /* Assign Columns */
+            #tab-clusters { grid-column: 1; }
+            #tab-task { grid-column: 2; border-left: 1px solid #333; border-right: 1px solid #333; padding: 0 !important; }
+            #tab-logs { grid-column: 3; }
             .tab-content {
                 display: flex !important;
                 flex-direction: column;
@@ -264,11 +292,6 @@
                 overflow: hidden;
                 grid-row: 1;
             }
-
-            /* Assign Columns */
-            #tab-clusters { grid-column: 1; }
-            #tab-task { grid-column: 2; border-left: 1px solid #333; border-right: 1px solid #333; }
-            #tab-logs { grid-column: 3; }
 
             /* Viz Panel spans bottom */
             #viz-panel {
@@ -290,16 +313,16 @@
                 ✨ Current Cluster: Default ✨ Working On: Idle ✨
             </span>
             <span style="font-size: 0.8rem; color: #888; margin-left: 10px;">✨</span>
-            <div id="led-indicator" class="led-circle" title="LED Status: Click to configure" onclick="configureLed()"></div>
+            <div id="led-indicator" class="led-circle" title="LED Status: Click to configure"></div>
         </h1>
     </header>
 
     <main>
         <!-- Tabs Header -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('clusters')">Clusters</button>
-            <button class="tab-btn" onclick="switchTab('task')">Task View</button>
-            <button class="tab-btn" onclick="switchTab('logs')">Logs</button>
+            <button id="btn-tab-clusters" class="tab-btn active">Clusters</button>
+            <button id="btn-tab-task" class="tab-btn">Task View</button>
+            <button id="btn-tab-logs" class="tab-btn">Logs</button>
         </div>
 
         <!-- Tab Content: Clusters -->
@@ -320,57 +343,83 @@
             </div>
 
             <!-- Queue Status -->
-            <div id="queue-status-container" style="margin-top:20px; padding:15px; background:var(--card-color); border:1px solid var(--border-color); border-radius:5px;">
-                <h4 style="margin-top:0; border-bottom:1px solid #333; padding-bottom:5px;">Current Queue Status</h4>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9rem;">
-                    <div>Current Task: <span id="q-task" style="color:var(--accent-color)">-</span></div>
-                    <div>Plugin: <span id="q-plugin" style="color:#aaa">-</span></div>
-                    <div>Duration: <span id="q-duration">-</span></div>
-                    <div>Elapsed: <span id="q-elapsed">-</span></div>
-                    <div>Queue Depth: <span id="q-depth">-</span></div>
-                </div>
+            <h4 style="margin-top:10px; margin-bottom: 10px; color: #888; text-transform: uppercase; font-size: 0.8rem; border-bottom: 1px solid #333;">Active Queue</h4>
+            <div class="controls-container" style="flex-direction:column; align-items:stretch; margin-bottom: 20px; font-size: 0.8rem;">
+                <div style="display:flex; justify-content:space-between;"><span>Task:</span> <span id="q-task" style="color:white">--</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Plugin:</span> <span id="q-plugin" style="color:white">--</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Elapsed:</span> <span id="q-elapsed" style="color:white">--</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Duration:</span> <span id="q-duration" style="color:white">--</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Depth:</span> <span id="q-depth" style="color:white">--</span></div>
             </div>
         </div>
 
         <!-- Tab Content: Task View -->
-        <div id="tab-task" class="tab-content">
-            <h3 style="margin-top:0">Device Identity</h3>
-            <div class="controls-container" style="margin-bottom:20px;">
-                <div class="control-group">
-                    <label>Description (Friendly Name)</label>
-                    <input type="text" id="cfg-desc" placeholder="e.g. Kitchen Node">
-                </div>
-                <div class="control-group">
-                    <label>Hostname</label>
-                    <input type="text" id="cfg-hostname" placeholder="ase-xxxx">
-                </div>
-                <div class="control-group">
-                    <label>Cluster</label>
-                    <input type="text" id="cfg-cluster" placeholder="Default">
-                </div>
-                <button onclick="applyIdentity()">UPDATE IDENTITY</button>
+        <div id="tab-task" class="tab-content" style="padding:0; display:none; flex-direction:column;">
+            <div class="sub-tabs">
+                <button id="btn-task-device" class="sub-tab-btn active">Device</button>
+                <button id="btn-task-task" class="sub-tab-btn">Task</button>
             </div>
 
-            <h4 style="margin-top:10px; margin-bottom: 10px; color: #888; text-transform: uppercase; font-size: 0.8rem; border-bottom: 1px solid #333;">Radio Task</h4>
-            <div class="controls-container">
-                <div class="control-group">
-                    <label>Mode</label>
-                    <select id="mode-select">
-                        <option value="IDLE">Idle</option>
-                        <option value="SCANNER">Scanner</option>
-                        <option value="MONITOR">Single Freq</option>
-                    </select>
+            <!-- SubTab: Device -->
+            <div id="subtab-device" class="sub-tab-content active">
+                <h3 style="margin-top:0">Device Identity</h3>
+                <div class="controls-container" style="margin-bottom:20px; flex-direction:column; align-items:stretch;">
+                    <div class="control-group">
+                        <label>Description (Friendly Name)</label>
+                        <input type="text" id="cfg-desc" placeholder="e.g. Kitchen Node">
+                    </div>
+                    <div class="control-group">
+                        <label>Hostname</label>
+                        <input type="text" id="cfg-hostname" placeholder="ase-xxxx">
+                    </div>
+                    <div class="control-group">
+                        <label>Cluster</label>
+                        <input type="text" id="cfg-cluster" placeholder="Default">
+                    </div>
+                    <button id="btn-update-identity" style="margin-top:10px; width:100%;">UPDATE IDENTITY</button>
                 </div>
-                <div class="control-group">
-                    <label>Frequency (MHz)</label>
-                    <input type="number" id="freq-input" value="915.0" step="0.1" style="width: 100px;">
+                
+                <div style="margin-top:auto; padding:15px; background:#1a1a1a; border-radius:4px;">
+                     <strong>Cluster Strategy:</strong> Independent<br>
+                     <small style="color:#888;">This node is currently operating independently.</small>
                 </div>
-                <button id="apply-btn">APPLY CONFIG</button>
             </div>
-            
-            <div style="margin-top:20px; padding:15px; background:#1a1a1a; border-radius:4px;">
-                <strong>Cluster Strategy:</strong> Independent<br>
-                <small style="color:#888;">This node is currently operating independently. Join a managed cluster to synchronize tasks.</small>
+
+            <!-- SubTab: Task -->
+            <div id="subtab-task" class="sub-tab-content">
+                <h3 style="margin-top:0">New Task</h3>
+                <div class="controls-container" style="margin-bottom:20px; flex-direction:column; align-items:stretch;">
+                    <div class="control-group">
+                        <label>Plugin Template</label>
+                        <select id="task-plugin-select" disabled style="opacity: 0.5;">
+                            <option>Scanner (Default)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h4 style="margin-top:10px; margin-bottom: 10px; color: #888; text-transform: uppercase; font-size: 0.8rem; border-bottom: 1px solid #333;">Manual Scan</h4>
+                <div class="controls-container" style="flex-direction:column; align-items:stretch;">
+                    <div class="control-group">
+                        <label>Start Frequency (MHz)</label>
+                        <input type="number" id="scan-start-freq" value="902.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Stop Frequency (MHz)</label>
+                        <input type="number" id="scan-stop-freq" value="928.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Resolution Bandwidth (kHz)</label>
+                        <input type="number" id="scan-rbw" value="500" step="1">
+                    </div>
+                    <div class="control-group" style="flex-direction:row; align-items:center; gap:10px; margin: 10px 0;">
+                        <input type="checkbox" id="scan-continuous" style="width:auto; margin:0;">
+                        <label style="margin:0;">Continuous Scan</label>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button id="btn-scan-start" style="flex:1;">START</button>
+                        <button id="btn-scan-stop" style="flex:1; background:var(--danger-color); color:white;">STOP</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -378,8 +427,8 @@
         <div id="tab-logs" class="tab-content" style="display:none; flex-direction:column;">
             <h3 style="margin-top:0">Logs</h3>
             <div class="sub-tabs">
-                <button class="sub-tab-btn active" onclick="switchLogMode('tail')" title="View current runtime logs (last 50 entries)">Tail</button>
-                <button class="sub-tab-btn" onclick="switchLogMode('head')" title="View boot sequence logs (first 50 entries)">Head</button>
+                <button id="btn-log-tail" class="sub-tab-btn active" title="View current runtime logs (last 50 entries)">Tail</button>
+                <button id="btn-log-head" class="sub-tab-btn" title="View boot sequence logs (first 50 entries)">Head</button>
             </div>
             
             <div id="log-container-tail" class="log-container active">
@@ -422,7 +471,7 @@
 
             // Show One
             const content = document.getElementById('tab-' + tabId);
-            content.style.display = (tabId === 'logs') ? 'flex' : 'block'; // Logs needs flex for scroll
+            content.style.display = (tabId === 'logs' || tabId === 'task') ? 'flex' : 'block'; 
             content.classList.add('active');
             
             // Highlight Btn (Find by onclick attr matching... crude but works for simple app)
@@ -435,16 +484,17 @@
 
         // Log Mode Switcher
         function switchLogMode(mode) {
-            // Buttons
-            document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+            const parent = document.getElementById('tab-logs');
+            // Buttons in this tab only
+            parent.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
             // Containers
             document.querySelectorAll('.log-container').forEach(c => c.classList.remove('active'));
 
             if (mode === 'tail') {
-                document.querySelectorAll('.sub-tab-btn')[0].classList.add('active');
+                parent.querySelectorAll('.sub-tab-btn')[0].classList.add('active');
                 document.getElementById('log-container-tail').classList.add('active');
             } else {
-                document.querySelectorAll('.sub-tab-btn')[1].classList.add('active');
+                parent.querySelectorAll('.sub-tab-btn')[1].classList.add('active');
                 document.getElementById('log-container-head').classList.add('active');
                 fetchHeadLogs(); // Load on demand (idempotent)
             }
@@ -459,16 +509,51 @@
                 const logs = await res.json();
                 const container = document.getElementById('log-list-head');
                 
+                 // Safe Clear
+                 while(container.firstChild) container.removeChild(container.firstChild);
+
                 if (Array.isArray(logs) && logs.length > 0) {
-                    container.innerHTML = logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+                     logs.forEach(l => {
+                        const div = document.createElement('div');
+                        div.className = 'log-entry';
+                        div.textContent = l;
+                        container.appendChild(div);
+                     });
                 } else {
-                    container.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No startup logs recorded.</div>';
+                    const msg = document.createElement('div');
+                    msg.style.textAlign = 'center';
+                    msg.style.color = '#666';
+                    msg.style.padding = '20px';
+                    msg.textContent = 'No startup logs recorded.';
+                    container.appendChild(msg);
                 }
                 headLogsLoaded = true;
             } catch(e) {
                 console.error("Failed to fetch head logs", e);
-                document.getElementById('log-list-head').innerHTML = '<div style="color:var(--danger-color); padding:20px;">Error loading logs.</div>';
+                const c = document.getElementById('log-list-head');
+                if(c) {
+                    c.textContent = "Error loading logs.";
+                    c.style.color = "var(--danger-color)";
+                    c.style.padding = "20px";
+                }
             }
+        }
+
+        // Task Sub-Tab Switcher
+        function switchTaskSubTab(mode) {
+             const parent = document.getElementById('tab-task');
+             // Buttons
+             parent.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+             // Containers
+             parent.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+
+             if (mode === 'device') {
+                 parent.querySelectorAll('.sub-tab-btn')[0].classList.add('active');
+                 document.getElementById('subtab-device').classList.add('active');
+             } else {
+                 parent.querySelectorAll('.sub-tab-btn')[1].classList.add('active');
+                 document.getElementById('subtab-task').classList.add('active');
+             }
         }
 
         // State
@@ -558,11 +643,32 @@
         // Delay initial resize to ensure layout is done
         setTimeout(resize, 100);
 
+        function escapeAttr(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
         // Polling Status
         async function fetchStatus() {
             try {
                 const res = await fetch('/api/status');
                 const data = await res.json();
+
+                const setText = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = value;
+                };
                 
                 // RAM Percentage
                 let ramText = Math.round(data.heap_free/1024) + "k";
@@ -571,9 +677,9 @@
                     ramText = pct + "% (" + ramText + " free)";
                 }
 
-                document.getElementById('stat-ram').innerText = ramText;
-                document.getElementById('stat-uptime').innerText = Math.round(data.uptime/1000) + "s";
-                document.getElementById('stat-plugin').innerText = data.plugin || "None";
+                setText('stat-ram', ramText);
+                setText('stat-uptime', Math.round(data.uptime/1000) + "s");
+                setText('stat-plugin', data.plugin || "None");
                 
                 // Update Local Device State
                 if(data.hostname) myDevice.hostname = data.hostname;
@@ -585,12 +691,16 @@
 
                 // Populate Config Form (only if not focused to avoid overwriting user typing)
                 const actEl = document.activeElement;
-                if (actEl.id !== 'cfg-desc') document.getElementById('cfg-desc').value = myDevice.description;
-                if (actEl.id !== 'cfg-hostname') document.getElementById('cfg-hostname').value = myDevice.hostname;
-                if (actEl.id !== 'cfg-cluster') document.getElementById('cfg-cluster').value = myDevice.cluster;
+                const descEl = document.getElementById('cfg-desc');
+                const hostEl = document.getElementById('cfg-hostname');
+                const clusterEl = document.getElementById('cfg-cluster');
+                if (descEl && actEl.id !== 'cfg-desc') descEl.value = myDevice.description;
+                if (hostEl && actEl.id !== 'cfg-hostname') hostEl.value = myDevice.hostname;
+                if (clusterEl && actEl.id !== 'cfg-cluster') clusterEl.value = myDevice.cluster;
 
-                document.getElementById('connection-status').innerText = "ONLINE";
-                document.getElementById('connection-status').classList.add('active');
+                setText('connection-status', "ONLINE");
+                const connEl = document.getElementById('connection-status');
+                if (connEl) connEl.classList.add('active');
 
                 // Mock Cluster Status update (backend not ready yet)
                 // In future: data.clusterName and data.clusterTask
@@ -599,8 +709,7 @@
                                : (data.plugin === "SystemIdle") ? "Searching for cluster friends 👀"
                                : "Idle ✨";
                 
-                document.getElementById('cluster-status').innerText = 
-                    `Current Cluster: ${data.clusterName || "Default"} ✨ Working On: ${taskDesc}`;
+                setText('cluster-status', `Current Cluster: ${data.clusterName || "Default"} ✨ Working On: ${taskDesc}`);
 
                 // Auto-Reload on Firmware Update
                 if (data.build_id) {
@@ -612,15 +721,15 @@
                         window.location.reload();
                     }
                 }
-                
+
                 // --- PROCESS QUEUE STATUS ---
                 if (data.queue && data.queue.current) {
                     const q = data.queue.current;
-                    document.getElementById('q-task').innerText = q.task || "Idle";
-                    document.getElementById('q-plugin').innerText = q.plugin || "SystemIdle";
-                    document.getElementById('q-duration').innerText = q.duration > 0 ? q.duration + "ms" : "Indefinite";
-                    document.getElementById('q-elapsed').innerText = q.elapsed + "ms";
-                    document.getElementById('q-depth').innerText = data.queue.depth || 0;
+                    setText('q-task', q.task || "Idle");
+                    setText('q-plugin', q.plugin || "SystemIdle");
+                    setText('q-duration', q.duration > 0 ? q.duration + "ms" : "Indefinite");
+                    setText('q-elapsed', (q.elapsed || 0) + "ms");
+                    setText('q-depth', data.queue.depth || 0);
                 }
 
                 // --- PROCESS LED STATUS ---
@@ -638,29 +747,44 @@
 
                 // --- PROCESS AGGREGATED DATA ---
                 
-                // 1. Logs
+                // 1. Logs (Safe DOM Update)
                 if (data.logs && Array.isArray(data.logs)) {
-                     const slice = data.logs; // Backend already limits to 50
-                     logBox.innerHTML = slice.map(l => `<div class="log-entry">${l}</div>`).join('');
+                     // Clear safely
+                     while(logBox.firstChild) logBox.removeChild(logBox.firstChild);
+                     // Append safely
+                     data.logs.forEach(msg => {
+                         const el = document.createElement('div');
+                         el.className = 'log-entry';
+                         el.textContent = (typeof msg === 'string') ? msg : JSON.stringify(msg);
+                         logBox.appendChild(el);
+                     });
                      logBox.scrollTop = logBox.scrollHeight;
                 }
 
                 // 2. Peers
                 if (data.peers && Array.isArray(data.peers)) {
-                    // Update list only if user isn't editing
-                    if (!document.querySelector('.rename-input')) {
-                        renderPeerList(data.peers);
-                    }
-                    
-                    // Trigger Crawl for Visualization (Throttled?)
+                    // Trigger Crawl First (Data Logic)
                     if(!isCrawling) {
-                        crawlNetwork(data.peers);
+                        try { crawlNetwork(data.peers); } catch(e) { console.warn("Crawl Skipped", e); }
+                    }
+
+                    // Render Second (UI Logic)
+                    if (!document.querySelector('.rename-input')) {
+                        try {
+                            renderPeerList(data.peers);
+                        } catch(e) {
+                             console.error("Peer Render Failed", e);
+                        }
                     }
                 }
 
             } catch(e) {
-                document.getElementById('connection-status').innerText = "OFFLINE";
-                document.getElementById('connection-status').classList.remove('active');
+                console.warn("Status Fetch Error", e);
+                    const stat = document.getElementById('connection-status');
+                    if (stat) {
+                        stat.innerText = "OFFLINE";
+                        stat.classList.remove('active');
+                    }
             }
         }
         setInterval(fetchStatus, 2000);
@@ -713,9 +837,11 @@
                                         (p.status && p.status.startsWith("Error")) ? 'var(--danger-color)' : '#666';
                         
                         const taskStr = p.task || "Unknown Task";
+                        const safeDesc = escapeHtml(p.description || "");
+                        const safeHost = escapeHtml(p.hostname || "Unknown");
                         const nameDisplay = p.description 
-                            ? `<div style="line-height:1.2;">${p.description}</div><div style="font-size:0.75rem; color:#666;">${p.hostname}</div>` 
-                            : p.hostname;
+                            ? `<div style="line-height:1.2;">${safeDesc}</div><div style="font-size:0.75rem; color:#666;">${safeHost}</div>` 
+                            : safeHost;
                         
                         // ID for in-place edit
                         const nodeId = "node-" + (p.ip || "unknown").replace(/\./g, '-');
@@ -723,11 +849,11 @@
                         return `
                     <div class="tree-node" id="${nodeId}">
                         <div class="device-node" style="${isMe ? 'border:1px solid #333;' : ''}">
-                            <div style="cursor:pointer; display:flex; align-items:center; flex:1;" onclick="window.location.href='${finalLink}'" title="Task: ${taskStr} | Click to open dashboard">
+                            <div data-action="open-node" data-link="${escapeAttr(finalLink)}" style="cursor:pointer; display:flex; align-items:center; flex:1;" title="Task: ${escapeAttr(taskStr)} | Click to open dashboard">
                                 <span class="node-name-label" style="color:${isMe ? 'white':'#aaa'}; font-weight:bold;">${nameDisplay}</span>
                             </div>
                             
-                            <span class="edit-icon" onclick="startRename('${nodeId}', '${p.ip}', '${p.description || ""}', '${p.hostname}')" title="Rename Node">✏️</span>
+                            <span class="edit-icon" data-action="rename" data-node-id="${escapeAttr(nodeId)}" data-ip="${escapeAttr(p.ip || "")}" data-desc="${escapeAttr(p.description || "")}" data-hostname="${escapeAttr(p.hostname || "")}" title="Rename Node">✏️</span>
 
                             <span style="margin-left:10px; font-size: 0.8rem; color:#888;">${taskStr}</span>
                             <span style="margin-left:5px; font-size: 0.8rem; color:${p.online ? statusColor : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
@@ -1010,6 +1136,94 @@
             }
             netCanvas.style.cursor = hover ? 'pointer' : 'default';
         });
+
+        // --- Apply Manual Override ---
+        async function startManualScan() {
+            const start = document.getElementById('scan-start-freq').value;
+            const stop = document.getElementById('scan-stop-freq').value;
+            const continuous = document.getElementById('scan-continuous').checked;
+
+            try {
+                // Placeholder for real scan task
+                alert("Starting Scan\nStart: " + start + "\nStop: " + stop + "\nContinuous: " + continuous);
+                /* 
+                await fetch('/api/task', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ plugin: "ManualScan", params: { start, stop, continuous } }) 
+                });
+                */
+            } catch(e) {
+                alert("Start Failed: " + e);
+            }
+        }
+
+        async function stopManualScan() {
+             try {
+                 await fetch('/api/task', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ plugin: "SystemIdle" }) 
+                });
+                alert("Scan Stopped (Idle)");
+            } catch(e) {
+                alert("Stop Failed: " + e);
+            }
+        }
+
+        // --- Event Binding (CSP Safe) ---
+        function bindEvents() {
+            function safeBind(id, handler) {
+                const el = document.getElementById(id);
+                if(el) {
+                    el.onclick = handler;
+                    el.style.cursor = 'pointer'; // Ensure visual cue
+                }
+            }
+
+            // Headers
+            safeBind('btn-tab-clusters', () => switchTab('clusters'));
+            safeBind('btn-tab-task', () => switchTab('task'));
+            safeBind('btn-tab-logs', () => switchTab('logs'));
+
+            // Sub-tabs
+            safeBind('btn-task-device', () => switchTaskSubTab('device'));
+            safeBind('btn-task-task', () => switchTaskSubTab('task'));
+            safeBind('btn-log-tail', () => switchLogMode('tail'));
+            safeBind('btn-log-head', () => switchLogMode('head'));
+
+            // Actions
+            safeBind('btn-scan-start', startManualScan);
+            safeBind('btn-scan-stop', stopManualScan);
+            safeBind('btn-update-identity', applyIdentity);
+            safeBind('led-indicator', configureLed);
+
+            // Cluster Tree Delegation
+            const tree = document.getElementById('cluster-tree');
+            if(tree) {
+                tree.onclick = (e) => {
+                    const renameEl = e.target.closest('[data-action="rename"]');
+                    if (renameEl) {
+                        e.stopPropagation();
+                        startRename(
+                            renameEl.dataset.nodeId,
+                            renameEl.dataset.ip,
+                            renameEl.dataset.desc || "",
+                            renameEl.dataset.hostname || ""
+                        );
+                        return;
+                    }
+
+                    const openEl = e.target.closest('[data-action="open-node"]');
+                    if (openEl && openEl.dataset.link) {
+                        window.location.href = openEl.dataset.link;
+                    }
+                };
+            }
+        }
+        
+        // Run Bindings
+        bindEvents();
 
         // --- Inline Renaming Logic ---
         function startRename(nodeId, ip, currentDesc, hostname) {
