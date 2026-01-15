@@ -10,6 +10,7 @@
 
 struct Peer {
     String hostname;
+    String description; // Friendly name
     String ip;
     String cluster;
     String status;

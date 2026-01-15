@@ -328,6 +328,7 @@ String WebServerManager::getCachedStatus() {
     doc["flash_size"] = ESP.getFlashChipSize();
 
     doc["hostname"] = Config::instance().getHostname();
+    doc["description"] = Config::instance().getString("description", "");
     doc["build_id"] = BUILD_ID;
     
     doc["rb_capacity"] = RingBuffer::instance().capacity();

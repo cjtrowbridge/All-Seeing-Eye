@@ -107,6 +107,18 @@
             color: #ffb74d; /* Orange for logs */
             background: #252525;
         }
+        .led-circle {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: #000;
+            border: 1px solid #555;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        .led-circle:hover { transform: scale(1.2); }
+        
         .log-container {
             display: none;
             flex: 1;
@@ -135,7 +147,7 @@
         }
         .tab-content.active { display: block; }
         
-        #tab-logs { padding: 0; display: flex; flex-direction: column; }
+        #tab-logs { display: flex; flex-direction: column; }
         #log-list { flex: 1; padding: 10px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.85rem; color: #ccc; }
 
         /* Persistent Viz Panel */
@@ -227,6 +239,11 @@
         .device-node { color: #aaa; display: flex; gap: 10px; padding: 5px; background: #1a1a1a; margin-bottom: 2px; border-radius: 4px; }
         .device-node:hover { background: #333; cursor: pointer; }
 
+        .device-node .edit-icon { opacity: 0; cursor: pointer; margin-left:10px; font-size: 1.2em; color: #888; }
+        .device-node:hover .edit-icon { opacity: 1; }
+        .device-node .edit-icon:hover { color: var(--accent-color); }
+        .rename-input { background: #333; color: white; border: 1px solid #555; padding: 2px 5px; font-size: 0.9em;  }
+
         /* Desktop Layout (3 Columns) */
         @media (min-width: 1024px) {
             .tabs { display: none !important; }
@@ -272,6 +289,8 @@
             <span id="cluster-status" style="font-size: 0.8rem; color: #888; font-weight: normal; margin-left: 10px;">
                 ✨ Current Cluster: Default ✨ Working On: Idle ✨
             </span>
+            <span style="font-size: 0.8rem; color: #888; margin-left: 10px;">✨</span>
+            <div id="led-indicator" class="led-circle" title="LED Status: Click to configure" onclick="configureLed()"></div>
         </h1>
     </header>
 
@@ -285,6 +304,7 @@
 
         <!-- Tab Content: Clusters -->
         <div id="tab-clusters" class="tab-content active">
+            <h3 style="margin-top:0">Cluster Overview</h3>
             <div id="cluster-tree">
                 <!-- Dynamic Content Loaded by JS -->
                 <div style="text-align:center; padding:20px; color:#666;">Loading Cluster Matrix...</div>
@@ -314,7 +334,24 @@
 
         <!-- Tab Content: Task View -->
         <div id="tab-task" class="tab-content">
-            <h3 style="margin-top:0">Current Task</h3>
+            <h3 style="margin-top:0">Device Identity</h3>
+            <div class="controls-container" style="margin-bottom:20px;">
+                <div class="control-group">
+                    <label>Description (Friendly Name)</label>
+                    <input type="text" id="cfg-desc" placeholder="e.g. Kitchen Node">
+                </div>
+                <div class="control-group">
+                    <label>Hostname</label>
+                    <input type="text" id="cfg-hostname" placeholder="ase-xxxx">
+                </div>
+                <div class="control-group">
+                    <label>Cluster</label>
+                    <input type="text" id="cfg-cluster" placeholder="Default">
+                </div>
+                <button onclick="applyIdentity()">UPDATE IDENTITY</button>
+            </div>
+
+            <h4 style="margin-top:10px; margin-bottom: 10px; color: #888; text-transform: uppercase; font-size: 0.8rem; border-bottom: 1px solid #333;">Radio Task</h4>
             <div class="controls-container">
                 <div class="control-group">
                     <label>Mode</label>
@@ -437,9 +474,69 @@
         // State
         const IP = window.location.hostname === "localhost" ? "allseeingeye.local" : window.location.hostname;
         // Local Device store
-        let myDevice = { hostname: "Loading...", ip: IP, status: "Unknown", cluster: "Default", online: true, isSelf: true };
+        let myDevice = { hostname: "Loading...", description: "", ip: IP, status: "Unknown", cluster: "Default", online: true, isSelf: true };
         let currentBuildId = null; 
         
+        // LED Config
+        async function configureLed() {
+            // Get current color from status (or just prompt empty)
+            const input = prompt("Enter RGB values (e.g. 255,0,128)\nEnter 0,0,0 to disable LED.", "0,0,0");
+            if (!input) return;
+
+            const parts = input.split(',').map(s => parseInt(s.trim()));
+            if(parts.length !== 3 || parts.some(isNaN)) {
+                alert("Invalid format. Use r,g,b");
+                return;
+            }
+            
+            const [r,g,b] = parts;
+            
+            try {
+                if(r===0 && g===0 && b===0) {
+                    await fetch('/api/led/off', { method: 'POST' });
+                } else {
+                    // Update Color first (silent if off)
+                    await fetch(`/api/led?r=${r}&g=${g}&b=${b}`);
+                    // Then Turn On
+                    await fetch('/api/led/on', { method: 'POST' });
+                }
+                // Refresh Page to show update
+                window.location.reload();
+            } catch(e) {
+                alert("LED Control Failed: " + e);
+            }
+        }
+
+        // Functions
+        async function applyIdentity() {
+            const desc = document.getElementById('cfg-desc').value;
+            const host = document.getElementById('cfg-hostname').value;
+            const clust = document.getElementById('cfg-cluster').value;
+            
+            if(!host) return alert("Hostname is required");
+            
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: desc,
+                        hostname: host,
+                        cluster: clust
+                    })
+                });
+                const j = await res.json();
+                if(j.status === 'success') {
+                    alert("Identity Updated. Rebooting may be required for Hostname changes.");
+                    fetchStatus(); // Refresh
+                } else {
+                    alert("Error: " + j.message);
+                }
+            } catch(e) {
+                alert("Comm Error: " + e);
+            }
+        }
+
         const canvas = document.getElementById('spectrum-canvas');
         const ctx = canvas.getContext('2d');
         const logBox = document.getElementById('log-list');
@@ -480,10 +577,17 @@
                 
                 // Update Local Device State
                 if(data.hostname) myDevice.hostname = data.hostname;
+                myDevice.description = data.description || "";
                 myDevice.status = data.status || "Unknown";
                 myDevice.cluster = data.clusterName || "Default"; // Backend provides clusterName
                 myDevice.task = data.task || "Unknown Task";
                 myDevice.lastProbe = Date.now(); // Self is always fresh
+
+                // Populate Config Form (only if not focused to avoid overwriting user typing)
+                const actEl = document.activeElement;
+                if (actEl.id !== 'cfg-desc') document.getElementById('cfg-desc').value = myDevice.description;
+                if (actEl.id !== 'cfg-hostname') document.getElementById('cfg-hostname').value = myDevice.hostname;
+                if (actEl.id !== 'cfg-cluster') document.getElementById('cfg-cluster').value = myDevice.cluster;
 
                 document.getElementById('connection-status').innerText = "ONLINE";
                 document.getElementById('connection-status').classList.add('active');
@@ -519,6 +623,19 @@
                     document.getElementById('q-depth').innerText = data.queue.depth || 0;
                 }
 
+                // --- PROCESS LED STATUS ---
+                if (data.led) {
+                    const ledEl = document.getElementById('led-indicator');
+                    if (data.led.power && data.led.color) {
+                        const { r, g, b } = data.led.color;
+                        ledEl.style.backgroundColor = `rgb(${r},${g},${b})`;
+                        ledEl.style.boxShadow = `0 0 8px rgb(${r},${g},${b})`;
+                    } else {
+                        ledEl.style.backgroundColor = '#000';
+                        ledEl.style.boxShadow = 'none';
+                    }
+                }
+
                 // --- PROCESS AGGREGATED DATA ---
                 
                 // 1. Logs
@@ -530,7 +647,10 @@
 
                 // 2. Peers
                 if (data.peers && Array.isArray(data.peers)) {
-                    renderPeerList(data.peers);
+                    // Update list only if user isn't editing
+                    if (!document.querySelector('.rename-input')) {
+                        renderPeerList(data.peers);
+                    }
                     
                     // Trigger Crawl for Visualization (Throttled?)
                     if(!isCrawling) {
@@ -579,11 +699,11 @@
                 const headerColor = isMyCluster ? "var(--success-color)" : "#bb86fc";
                 const suffix = isMyCluster ? " (Local)" : "";
                 
-                html += `<div class="cluster-root" style="margin-top:15px; color:${headerColor};">Cluster: ${cName}${suffix}</div>`;
-                
+                html += `<div class="cluster-root" style="color:${headerColor}">${cName}${suffix}</div>`;
+
                 html += cPeers.map(p => {
-                        const isMe = p.isSelf;
-                        const link = `http://${(p.hostname || p.ip).toLowerCase()}.local`; // Try mDNS
+                        const isMe = (p.ip === myDevice.ip);
+                        const link = `http://${(p.hostname || p.ip).toLowerCase()}.local`;
                         const alternateLink = `http://${p.ip}`; 
                         
                         // Prefer Hostname (mDNS) over IP
@@ -593,20 +713,34 @@
                                         (p.status && p.status.startsWith("Error")) ? 'var(--danger-color)' : '#666';
                         
                         const taskStr = p.task || "Unknown Task";
+                        const nameDisplay = p.description 
+                            ? `<div style="line-height:1.2;">${p.description}</div><div style="font-size:0.75rem; color:#666;">${p.hostname}</div>` 
+                            : p.hostname;
                         
+                        // ID for in-place edit
+                        const nodeId = "node-" + (p.ip || "unknown").replace(/\./g, '-');
+
                         return `
-                    <div class="tree-node">
-                        <div class="device-node" onclick="window.location.href='${finalLink}'" title="Task: ${taskStr} | Click to open dashboard" style="${isMe ? 'border:1px solid #333;' : ''}">
-                            <span style="color:${isMe ? 'white':'#aaa'}; font-weight:bold;">${p.hostname}</span>
+                    <div class="tree-node" id="${nodeId}">
+                        <div class="device-node" style="${isMe ? 'border:1px solid #333;' : ''}">
+                            <div style="cursor:pointer; display:flex; align-items:center; flex:1;" onclick="window.location.href='${finalLink}'" title="Task: ${taskStr} | Click to open dashboard">
+                                <span class="node-name-label" style="color:${isMe ? 'white':'#aaa'}; font-weight:bold;">${nameDisplay}</span>
+                            </div>
+                            
+                            <span class="edit-icon" onclick="startRename('${nodeId}', '${p.ip}', '${p.description || ""}', '${p.hostname}')" title="Rename Node">✏️</span>
+
                             <span style="margin-left:10px; font-size: 0.8rem; color:#888;">${taskStr}</span>
                             <span style="margin-left:5px; font-size: 0.8rem; color:${p.online ? statusColor : '#666'}">[${p.online ? (p.status || 'Active') : 'Offline'}]</span>
-                            <div style="flex:1"></div>
+                            <div style="flex:0.1"></div>
                             <span style="color:#444; font-size:0.8rem;">${isMe ? "(This Device)" : p.ip}</span>
                         </div>
                     </div>
                 `}).join('');
             }
-            container.innerHTML = html;
+            // Only update if changed to prevent hover flicker
+            if (container.innerHTML !== html) {
+                container.innerHTML = html;
+            }
         }
 
         async function crawlNetwork(localPeers) {
@@ -827,7 +961,8 @@
                 // Labels
                 netCtx.fillStyle = '#fff';
                 netCtx.font = '10px Consolas';
-                netCtx.fillText(n.id, n.x + 10, n.y + 3);
+                const label = n.data.description ? n.data.description : n.id;
+                netCtx.fillText(label, n.x + 10, n.y + 3);
             });
 
             requestAnimationFrame(runForceSimulation);
@@ -875,6 +1010,67 @@
             }
             netCanvas.style.cursor = hover ? 'pointer' : 'default';
         });
+
+        // --- Inline Renaming Logic ---
+        function startRename(nodeId, ip, currentDesc, hostname) {
+            const nodeEl = document.getElementById(nodeId);
+            if(!nodeEl) return;
+
+            const nameArea = nodeEl.querySelector('.node-name-label');
+            if(!nameArea) return;
+            
+            // Avoid double-edit
+            if(nameArea.querySelector('input')) return;
+
+            // Save old content
+            const oldHtml = nameArea.innerHTML;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentDesc;
+            input.placeholder = hostname;
+            input.className = 'rename-input';
+            
+            // Interaction
+            input.onkeydown = (e) => {
+                if(e.key === 'Enter') {
+                     input.disabled = true; 
+                     input.classList.remove('rename-input'); // Allow polling to resume
+                     saveNodeName(ip, input.value);
+                }
+                if(e.key === 'Escape') {
+                    nameArea.innerHTML = oldHtml;
+                }
+                e.stopPropagation(); // prevent tree click
+            };
+            input.onclick = (e) => e.stopPropagation();
+            
+            nameArea.innerHTML = '';
+            nameArea.appendChild(input);
+            input.focus();
+        }
+
+        async function saveNodeName(ip, newDesc) {
+            try {
+                // Cross-Origin Request to the target node
+                // Requires the target node to support CORS headers (Config.cpp/WebServer.cpp likely handles this globally or limited)
+                const targetUrl = `http://${ip}/api/config`; 
+                
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: newDesc }) 
+                });
+                
+                if(!res.ok) throw new Error("Node rejected update");
+                
+                // Refresh list
+                setTimeout(fetchStatus, 500);
+                
+            } catch(e) {
+                alert("Failed to update remote node: " + e.message + "\n(Ensure nodes are on same version)");
+            }
+        }
 
         // Dummy Viz
         function drawPattern() {

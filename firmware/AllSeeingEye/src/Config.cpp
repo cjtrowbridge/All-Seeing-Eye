@@ -85,6 +85,7 @@ String Config::getAllAsJson() {
     
     // Cluster Config
     doc["cluster"] = getString("cluster", "Default");
+    doc["description"] = getString("description", "");
     
     // Peer Discovery
     doc["peer_ignore_hours"] = getInt("peer_ignore_hours", 12);
@@ -122,6 +123,11 @@ bool Config::updateFromJson(String jsonBody) {
     // Update Cluster
     if (doc.containsKey("cluster")) {
         setString("cluster", doc["cluster"].as<String>());
+    }
+
+    // Update Description
+    if (doc.containsKey("description")) {
+        setString("description", doc["description"].as<String>());
     }
 
     // Peer Discovery

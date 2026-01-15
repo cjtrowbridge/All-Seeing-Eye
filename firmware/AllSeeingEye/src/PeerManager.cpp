@@ -166,12 +166,14 @@ bool PeerManager::probePeer(String ip) {
              String pCluster = doc["clusterName"] | "Default"; 
              String pStatus = doc["status"] | "Unknown";
              String pTask = doc["task"] | "Unknown Task";
+             String pDesc = doc["description"] | "";
 
              // Check if exists
              bool found = false;
              for(auto& peer : _peers) {
                  if(peer.ip == ip) {
                      peer.hostname = pHostname;
+                     peer.description = pDesc;
                      peer.cluster = pCluster;
                      peer.status = pStatus;
                      peer.task = pTask;
@@ -186,6 +188,7 @@ bool PeerManager::probePeer(String ip) {
              if(!found) {
                  Peer p;
                  p.hostname = pHostname;
+                 p.description = pDesc;
                  p.ip = ip;
                  p.cluster = pCluster;
                  p.status = pStatus;
@@ -304,6 +307,7 @@ void PeerManager::populatePeers(JsonArray& arr) {
     for (const auto &p : _peers) {
         JsonObject obj = arr.add<JsonObject>();
         obj["hostname"] = p.hostname;
+        obj["description"] = p.description;
         obj["ip"] = p.ip;
         obj["cluster"] = p.cluster;
         obj["status"] = p.status;
