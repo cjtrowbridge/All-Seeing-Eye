@@ -72,8 +72,7 @@
 - [x] **Startup Stages**: Implement POST -> Infrastructure -> Startup Queue -> App Loop lifecycle.
 - [ ] **Startup Tasks**:
     - [x] `RadioHardwareTest`: Validate CC1101 SPI.
-    - [ ] `GeolocationScan`:
-        - [ ] **Geolocation Plugin** Looks at different possible approaches and applies confidence over time to build a location fix. Tries to identify evidence of movement or stationarity and report this to apps and plugins that need to know the location and vector of the node in order to do their tasks.
+    - [ ] `GeolocationScan`: Looks at different possible approaches and applies confidence over time to build a location fix. Tries to identify evidence of movement or stationarity and report this to apps and plugins that need to know the location and vector of the node in order to do their tasks.
         - [ ] **Precision Approach (GPS)**:
              - [ ] If a GPS module is connected, use that.
         - [ ] **Native Approach (No GPS)**
