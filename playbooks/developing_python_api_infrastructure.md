@@ -10,6 +10,7 @@ This playbook establishes the strict engineering standards and implementation pa
 *   **Single Source of Truth**: The `known_hosts.csv` file is the only persistence layer.
 *   **Fail Fast, Fail Loud**: Network errors must be caught and reported clearly to the user/agent. Do not silently swallow exceptions.
 *   **Type Safety**: All new classes and methods must use Python 3.9+ Type Hints.
+*   **CLI Parity Required**: Every API endpoint must be callable from the CLI for debugging and verification.
 
 ## 2. Implementing Host Management (`HostManager`)
 
@@ -62,6 +63,10 @@ Do not write logic in the `if __name__ == "__main__":` block.
 3.  Instantiate `EyeClient` with the resolved IP.
 4.  Dispatch to a handler function (e.g., `handle_get(client, endpoint)`).
 
+### Endpoint Coverage Rule
+*   **Requirement**: Every API endpoint documented in `api/README.md` must be usable via the CLI.
+*   **Implementation**: Either add a dedicated CLI command/flag or document the generic `get`/`post` usage for that endpoint.
+
 ### Output Streams
 *   **Success Data**: Print to `stdout`.
 *   **Logs/Errors/Debug**: Print to `stderr`.
@@ -83,3 +88,4 @@ Before committing changes to the API Client:
 2.  **Default Target**: Run `cli.py get /api/status`. Does it hit the first host?
 3.  **Error Case**: Run `cli.py --host "does-not-exist" get /api/status`. Does it fail gracefully with an error message?
 4.  **Logging**: Are network operations visible when debug mode is enabled?
+5.  **CLI Parity**: Can the CLI invoke every endpoint in `api/README.md`?

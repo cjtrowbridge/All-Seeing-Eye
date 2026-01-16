@@ -34,6 +34,7 @@ This playbook describes the process for compiling, packing web assets, and deplo
         *   **Do not continue** until the script prints `All Tasks Completed.`
         *   *If it fails*: The error log is at `build/compile.log`. Read it to diagnose (usually missing libraries or syntax errors).
     *   **Phase 3: Deployment**: The script iterates through `known_hosts.txt`.
+        *   **Auto-Retry**: If a node update fails, the script will POST `/api/reboot`, wait briefly, and retry the OTA once before moving to the next node.
 
 4.  **Verify Success**
     *   **Success**: Output shows `Target: [hostname] ... Status: ONLINE ... SUCCESS`.

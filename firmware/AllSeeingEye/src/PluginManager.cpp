@@ -4,7 +4,12 @@
 // Available Plugins
 #include "SystemIdlePlugin.h"
 #include "RadioTestPlugin.h"
-// #include "ScannerPlugin.h" // Future
+#include "BleRangingPlugin.h"
+#include "GeolocationPlugin.h"
+#include "RfDiagPlugin.h"
+#include "SpectrumPlugin.h"
+#include "MeshtasticPlugin.h"
+#include "TaskTypes.h"
 
 PluginManager& PluginManager::instance() {
     static PluginManager _instance;
@@ -35,6 +40,123 @@ void PluginManager::loadPlugin(ASEPlugin* newPlugin) {
     xSemaphoreGive(_mutex);
 }
 
+// -------------------------------------------------------------------------
+// Task Registry
+// Define all available tasks here. 
+// This mimics a database of capabilities.
+// -------------------------------------------------------------------------
+std::vector<TaskDefinition> PluginManager::getTaskCatalog() {
+    std::vector<TaskDefinition> catalog;
+
+    // 1. BLE Ranging
+    catalog.push_back({
+        "ble-ranging/peer", 
+        "BLE Peer Ranging", 
+        "BLE Ranging", 
+        "Active scan + RSSI history logging for specific targets.",
+        "/api/task/ble-ranging/peer"
+    });
+    catalog.push_back({
+        "ble-ranging/survey", 
+        "BLE Device Survey", 
+        "BLE Ranging", 
+        "Lists all nearby BLE MACs and payloads.",
+        "/api/task/ble-ranging/survey"
+    });
+
+    // 2. Geolocation (Placeholder)
+    catalog.push_back({
+        "geolocation/fix",
+        "Geolocation Fix",
+        "Geolocation",
+        "Aggregates GPS + WiFi anchors to determine location.",
+        "/api/task/geolocation/fix"
+    });
+
+    // 3. System
+    catalog.push_back({
+        "system/idle",
+        "System Idle",
+        "System",
+        "Low power background monitoring.",
+        "/api/task/system/idle"
+    });
+
+    // 4. RF Diagnostics
+    catalog.push_back({
+        "rf-diag/noise",
+        "Noise Floor Check",
+        "RF Diagnostics",
+        "Measures RSSI without sync word/packet logic.",
+        "/api/task/rf-diag/noise"
+    });
+
+    // 5. Spectrum Analysis
+    catalog.push_back({
+       "spectrum/scan",
+       "Band Scan",
+       "Spectrum Analyzer",
+       "Standard sweep, returns power levels.",
+       "/api/task/spectrum/scan"
+    });
+
+    // 6. Meshtastic
+    catalog.push_back({
+        "meshtastic/monitor",
+        "Traffic Monitor",
+        "Meshtastic",
+        "Logs all seen packets with RSSI/SNR metrics.",
+        "/api/task/meshtastic/monitor"
+    });
+    catalog.push_back({
+        "meshtastic/trace",
+        "Network Traceroute",
+        "Meshtastic",
+        "Performs an active traceroute to map the hop path.",
+        "/api/task/meshtastic/trace"
+    });
+
+    return catalog;
+}
+
+bool PluginManager::startTask(String taskId, JsonObject params) {
+    Logger::instance().info("PluginMgr", "Requesting Task: %s", taskId.c_str());
+    
+    String pluginName = "";
+    
+    // Router Logic
+    if (taskId.startsWith("ble-ranging")) {
+        pluginName = "BleRanging";
+    } else if (taskId.startsWith("system/idle")) {
+        pluginName = "SystemIdle";
+    } else if (taskId.startsWith("geolocation")) {
+        pluginName = "Geolocation";
+    } else if (taskId.startsWith("rf-diag")) {
+        pluginName = "RfDiag";
+    } else if (taskId.startsWith("spectrum")) {
+        pluginName = "Spectrum";
+    } else if (taskId.startsWith("meshtastic")) {
+        pluginName = "Meshtastic";
+    }
+    
+    if (pluginName == "") {
+        Logger::instance().error("PluginMgr", "No plugin mapping for task: %s", taskId.c_str());
+        return false;
+    }
+
+    // Create the new plugin
+    ASEPlugin* plugin = createPlugin(pluginName);
+    if (!plugin) return false;
+
+    // Configure it BEFORE loading it (while it's just a pointer on Core 0 stack)
+    plugin->configure(taskId, params);
+
+    // Load it (Swaps active plugin safely)
+    loadPlugin(plugin);
+    
+    return true;
+}
+
 ASEPlugin* PluginManager::createPlugin(String name) {
     if (name == "SystemIdle" || name == "Idle") {
         return new SystemIdlePlugin();
@@ -42,7 +164,13 @@ ASEPlugin* PluginManager::createPlugin(String name) {
     if (name == "RadioTest") {
         return new RadioTestPlugin();
     }
-    // Future: Scanner, Jammer, etc.
+    if (name == "BleRanging") {
+        return new BleRangingPlugin();
+    }
+    if (name == "Geolocation") return new GeolocationPlugin();
+    if (name == "RfDiag") return new RfDiagPlugin();
+    if (name == "Spectrum") return new SpectrumPlugin();
+    if (name == "Meshtastic") return new MeshtasticPlugin();
     
     Logger::instance().error("PluginMgr", "Unknown plugin request: %s. Defaulting to Idle.", name.c_str());
     return new SystemIdlePlugin();

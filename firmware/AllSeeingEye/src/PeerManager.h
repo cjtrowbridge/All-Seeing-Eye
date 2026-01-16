@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <vector>
+#include <utility> // for std::pair
 #include <ArduinoJson.h>
 #include <deque>
 
@@ -18,6 +19,10 @@ struct Peer {
     bool online;
     unsigned long lastSeen;
     unsigned long lastProbe; // timestamp of last successful /api/status check
+    
+    // BLE Ranging Data
+    std::vector<int> bleRssiHistory; // Last 5 RSSI values (-99 if missing)
+    float bleDistance = -1.0f;       // Distance estimate (-1 if unknown)
 };
 
 struct IgnoredHost {
@@ -44,6 +49,10 @@ public:
     
     // Updates status for a specific peer
     bool probePeer(String ip);
+
+    // Update BLE statistics for all peers based on scan results
+    // Input: List of {hostname, rssi} found in the scan
+    void updateBleStats(const std::vector<std::pair<String, int>>& foundPeers);
 
 private:
     PeerManager();

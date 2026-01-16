@@ -45,6 +45,9 @@ class EyeClient:
     def post(self, endpoint: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return self.request("POST", endpoint, payload=payload)
 
+    def get_ble_ranging(self) -> Dict[str, Any]:
+        return self.get("/api/ranging/ble")
+
     def _resolve_url(self, endpoint: str) -> str:
         normalized = endpoint if endpoint.startswith("/") else f"/{endpoint}"
         return f"http://{self.address}{normalized}"

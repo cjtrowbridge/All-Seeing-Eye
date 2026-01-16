@@ -153,6 +153,9 @@ While the core functionality is provided by the ESP32 and CC1101, additional mod
 
 This section details methods for determining the positions of dispersed nodes.
 
+### 8.0 Geolocation Core Service (Planned)
+The firmware will maintain a core geolocation service that fuses evidence over time (GPS, WiFi, BLE, RF, mesh) into a single estimate. The service exposes a summarized `geolocation` block via `/api/status`, including confidence, fix type (absolute/relative), motion state, and last-updated time. This is the anchor point that BLE ranging and other sensors will feed into.
+
 ### 8.1 Native Approach (No GPS)
 This method utilizes the core ESP32+CC1101 hardware to estimate location without dedicated GPS modules. It relies on a "Spring-Mass" or "Elastic Map" concept.
 

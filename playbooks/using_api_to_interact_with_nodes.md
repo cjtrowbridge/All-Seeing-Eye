@@ -60,6 +60,8 @@ The complete list of API endpoints, methods, and payloads is maintained in **[`a
 
 The examples below demonstrate the *syntax* for interacting with these endpoints using the Python client.
 
+**CLI Parity Rule**: Every endpoint in `api/README.md` must be callable from the CLI for debugging and verification. If a dedicated command does not exist, use the generic `get`/`post` form and document the example.
+
 ## 4. Python API Usage Patterns
 
 **General GET**:

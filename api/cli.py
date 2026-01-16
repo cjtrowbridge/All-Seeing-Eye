@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--list", action="store_true", help="List known hosts")
     parser.add_argument("--host", help="Target host by IP or hostname (quote if spaces)")
     parser.add_argument("--json", action="store_true", help="Output raw JSON")
+    parser.add_argument("--ble-ranging", action="store_true", help="Get latest BLE ranging scan")
     parser.add_argument("action", nargs="?", help="HTTP method (get/post)")
     parser.add_argument("endpoint", nargs="?", help="API endpoint, e.g. /api/status")
     parser.add_argument("payload", nargs="?", help="JSON payload for POST")
@@ -75,10 +76,6 @@ def main() -> int:
         ensure_hosts(manager)
         return handle_list(manager, args.json)
 
-    if not args.action or not args.endpoint:
-        print("Missing action or endpoint. Use --list or provide command.", file=sys.stderr)
-        return 1
-
     ensure_hosts(manager)
     try:
         host = manager.resolve_host(args.host)
@@ -87,6 +84,16 @@ def main() -> int:
         return 1
 
     client = EyeClient(host["ip_address"])
+
+    if args.ble_ranging:
+        response = client.get_ble_ranging()
+        print(json.dumps(response, indent=2))
+        return 0 if response.get("ok", False) else 1
+
+    if not args.action or not args.endpoint:
+        print("Missing action or endpoint. Use --list or provide command.", file=sys.stderr)
+        return 1
+
     return handle_request(client, args.action, args.endpoint, args.payload, args.json)
 
 

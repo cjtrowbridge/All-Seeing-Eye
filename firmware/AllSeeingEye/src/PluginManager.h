@@ -2,6 +2,7 @@
 #define PLUGINMANAGER_H
 
 #include "ASEPlugin.h"
+#include "TaskTypes.h"
 #include <vector>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -9,6 +10,10 @@
 class PluginManager {
 public:
     static PluginManager& instance();
+
+    // Registry
+    std::vector<TaskDefinition> getTaskCatalog(); 
+    bool startTask(String taskId, JsonObject params); // Returns true if task started
 
     // Use to switch plugins from Core 0
     // NOTE: PluginManager TAKES OWNERSHIP of the pointer and will delete the OLD plugin.

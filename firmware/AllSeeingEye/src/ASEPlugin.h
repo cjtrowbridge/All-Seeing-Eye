@@ -19,6 +19,9 @@ public:
     virtual String getDescription() { return ""; }
     virtual String getVersion() { return "1.0.0"; }
 
+    // Task & Configuration
+    virtual void configure(String taskId, const JsonObject& params) {}
+    
     // API Interaction (Core 0 requests this, usually protected by mutex in Manager)
     // Returns true if data was written to doc
     virtual bool getJsonData(JsonDocument& doc) { return false; } 

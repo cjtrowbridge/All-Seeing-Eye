@@ -10,6 +10,8 @@
 #include "AsyncJson.h" 
 #include <ArduinoJson.h>
 #include "Scheduler.h" // Add scheduler
+#include "Geolocation.h"
+#include "BleRangingManager.h"
 
 WebServerManager& WebServerManager::instance() {
     static WebServerManager _instance;
@@ -101,6 +103,17 @@ void WebServerManager::setupRoutes() {
         request->send(200, "application/json", response);
     });
 
+    // API: BLE Ranging (Latest Scan)
+    _server.on("/api/ranging/ble", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api/ranging/ble");
+        JsonDocument doc;
+        JsonObject ble = doc.to<JsonObject>();
+        BleRangingManager::instance().populateStatus(ble);
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
     // API: Utils - Ping
     _server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest *request){
         if (request->hasParam("target")) {
@@ -164,6 +177,61 @@ void WebServerManager::setupRoutes() {
         serializeJson(doc, response);
         request->send(200, "application/json", response);
     });
+
+    // --------------------------------------------------
+    // API: Task Registry (Phase 5.1)
+    // --------------------------------------------------
+
+    // GET /api/task - Discovery
+    _server.on("/api/task", HTTP_GET, [](AsyncWebServerRequest *request){
+        Logger::instance().info("API", "GET /api/task");
+        JsonDocument doc;
+        JsonArray arr = doc.to<JsonArray>();
+        
+        std::vector<TaskDefinition> tasks = PluginManager::instance().getTaskCatalog();
+        
+        for(const auto& t : tasks) {
+            JsonObject obj = arr.add<JsonObject>();
+            obj["id"] = t.id;
+            obj["name"] = t.name;
+            obj["description"] = t.description;
+            obj["plugin"] = t.pluginName;
+            obj["link"] = t.endpoint;
+        }
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
+
+    // POST /api/task/{taskId} - Execution
+    // Note: We use a wildcard handler because AsyncWebServer doesn't do path params easily for *all* subpaths
+    // But we defined specific endpoints in the catalog, so we can just match startsWith or use specific handlers.
+    // For simplicity, we will register a generic handler for POST requests and parse the URL.
+    
+    // Instead of one generic handler which is messy, let's implement the specific routes from the catalog?
+    // Cons: Duplication.
+    // Pros: Explicit.
+    
+    // Better: One Handler for /api/task/* to give instructions
+    _server.on("/api/task", HTTP_POST, [](AsyncWebServerRequest *request){
+         request->send(400, "application/json", "{\"error\":\"Use specific task endpoints e.g. /api/task/ble-ranging/survey\"}");
+    });
+    
+    // Loop to register handlers for catalog items
+    std::vector<TaskDefinition> tasks = PluginManager::instance().getTaskCatalog();
+    for(const auto& t : tasks) {
+         AsyncCallbackJsonWebHandler *h = new AsyncCallbackJsonWebHandler(t.endpoint.c_str(), [t](AsyncWebServerRequest *request, JsonVariant &json) {
+            Logger::instance().info("API", "Starting Task: %s", t.id.c_str());
+            JsonObject params = json.as<JsonObject>();
+            if (PluginManager::instance().startTask(t.id, params)) {
+                 request->send(200, "application/json", "{\"status\":\"started\", \"taskId\":\"" + t.id + "\"}");
+            } else {
+                 request->send(500, "application/json", "{\"error\":\"Failed to start task\"}");
+            }
+        });
+        _server.addHandler(h);
+    }
 
     // --------------------------------------------------
     // API: LED Control
@@ -284,6 +352,11 @@ void WebServerManager::setupRoutes() {
         r6["method"] = "GET";
         r6["desc"] = "Get discovered peers list";
 
+        JsonObject rBle = routes.add<JsonObject>();
+        rBle["path"] = "/api/ranging/ble";
+        rBle["method"] = "GET";
+        rBle["desc"] = "Get latest BLE ranging scan results";
+
         JsonObject rLed = routes.add<JsonObject>();
         rLed["path"] = "/api/led";
         rLed["method"] = "GET";
@@ -369,6 +442,12 @@ String WebServerManager::getCachedStatus() {
     doc["timezone"] = Kernel::instance().getTimezone();
     doc["time"] = (long long)Kernel::instance().getEpochTime();
     doc["ntp_sync"] = Kernel::instance().isTimeSynced();
+
+    JsonObject geo = doc.createNestedObject("geolocation");
+    GeolocationService::instance().populateStatus(geo);
+
+    JsonObject bleRanging = doc.createNestedObject("ble_ranging");
+    BleRangingManager::instance().populateStatus(bleRanging);
     
     doc["rb_capacity"] = RingBuffer::instance().capacity();
     doc["rb_usage"] = RingBuffer::instance().available();

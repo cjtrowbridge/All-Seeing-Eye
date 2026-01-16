@@ -58,6 +58,11 @@ python cli.py [TARGET] [ACTION] [PAYLOAD]
     python cli.py --host "Living Room" get /api/status
     ```
 
+*   **BLE Ranging (Latest Scan)**:
+    ```bash
+    python cli.py --host "eye-beta" --ble-ranging
+    ```
+
 *   **POST Command**:
     ```bash
     python cli.py post /api/task '{"plugin":"SpectrumSweep", "params":{"freq": 915}}'
@@ -82,6 +87,27 @@ The following routes are registered in `firmware/AllSeeingEye/src/WebServer.cpp`
 | `/api/led/off` | POST | Disable LED output |
 | `/api/queue` | GET | Task scheduler state |
 | `/api/reboot` | POST | Reboot the device |
+| `/api/ranging/ble` | GET | Latest BLE ranging scan results |
+
+## Data Models
+
+### Peer Object
+Returned in `/api/peers` and the `peers` array of `/api/status`.
+
+```json
+{
+  "hostname": "allseeingeye-4ae214",
+  "ip": "192.168.1.105",
+  "status": "Idle",
+  "online": true,
+  "lastProbe": 1705351234,
+  "ble_rssi": [-85, -82, -80, -99, -84],
+  "ble_dist_m": 3.42
+}
+```
+
+*   `ble_rssi`: Array of last 5 Bluetooth RSSI measurements. `-99` indicates the peer was not seen during that scan window.
+*   `ble_dist_m`: Estimated distance in meters based on Path Loss model. `null` if no recent data.
 
 ## Development Roadmap
 
@@ -174,6 +200,21 @@ All API endpoints must return helpful error messages for 400-series client error
       "clusterName": "Alpha",
       "status": "Working: Scanner",
       "task": "Broadband Sweep",
+      "geolocation": {
+          "state": "init",
+          "fix": "none",
+          "confidence": 0.0,
+          "last_updated": 0,
+          "motion": {
+              "stationary": false,
+              "speed_mps": 0.0,
+              "heading_deg": 0.0,
+              "variance": 0.0
+          },
+          "position": null,
+          "relative": null,
+          "sources": []
+      },
       "queue": {
           "depth": 2,
           "current": {
@@ -184,11 +225,58 @@ All API endpoints must return helpful error messages for 400-series client error
               "duration": 5000
           }
       },
+                            "ble_ranging": {
+                                    "enabled": true,
+                                        "scan_interval_ms": 10000,
+                                        "scan_window_ms": 200,
+                                        "advertise_interval_ms": 1000,
+                                        "last_scan": 0,
+                                        "service_uuid": "180f6f62-2b31-4307-b353-9d115e5c707d",
+                                        "local_bssid": "f4:12:fa:01:02:03",
+                                    "peers": [],
+                                    "bssids": []
+                        },
       "led": { "power": true, "color": { "r": 0, "g": 255, "b": 0 } },
       "peers": [ ... ],
       "logs": [ ... ]
     }
     ```
+
+### 10. BLE Ranging (Planned)
+*   **Endpoint:** `/api/ranging/ble`
+*   **Method:** `GET`
+    *   **Description:** Read back the most recent BLE ranging scan results (scan cadence aligned to UTC modulo 10s).
+        *   **GET Response Example**:
+        ```json
+        {
+            "enabled": true,
+            "scan_interval_ms": 10000,
+            "scan_window_ms": 200,
+            "advertise_interval_ms": 1000,
+            "last_scan": 1768435210,
+            "service_uuid": "180f6f62-2b31-4307-b353-9d115e5c707d",
+            "local_bssid": "f4:12:fa:01:02:03",
+            "peers": [
+                {
+                    "peer_id": "allseeingeye-acde12",
+                    "rssi": -58,
+                    "distance_m": 4.2,
+                    "seen_at": 1768435200,
+                    "name": "allseeingeye-acde12",
+                    "service_uuid": "180f6f62-2b31-4307-b353-9d115e5c707d"
+                }
+            ],
+            "bssids": [
+                {
+                    "bssid": "f4:12:fa:01:02:03",
+                    "rssi": -72,
+                    "tx_power": -8,
+                    "seen_at": 1768435210,
+                    "payload": "0201060aff4c001005"
+                }
+            ]
+        }
+        ```
 
 ### 2. Configuration
 *   **Endpoint:** `/api/config`

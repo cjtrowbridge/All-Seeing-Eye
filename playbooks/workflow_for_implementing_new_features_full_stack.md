@@ -32,15 +32,23 @@ This playbook defines the "Full Stack" development process for adding a new capa
             return self._post("/api/led/blink", {"duration": duration_ms})
         ```
 
-4.  **Update Agent Playbooks (If needed)**
+4.  **Expose in the CLI (Required)**
+    *   **File**: `api/cli.py`.
+    *   **Action**: Every API endpoint must be callable from the CLI for debugging and verification.
+    *   **Rule**: If the CLI already supports generic `get`/`post`, add a documented CLI example for the new endpoint.
+    *   **Why**: Field operations rely on CLI parity when WebUI is unavailable.
+
+5.  **Update Agent Playbooks (If needed)**
     *   If this feature changes how we deploy or troubleshoot (e.g., a new "Safe Mode"), create or update the relevant playbook in `playbooks/`.
 
-5.  **Final Verification**
+6.  **Final Verification**
     *   Run a Python script calling the new method.
+    *   Run the CLI command for the same endpoint.
     *   Observe the physical device response.
     *   Check `AGENTS.md` and `README.md` to ensure they are up to date.
 
 ## Verification
 *   Current Code matching Documentation.
 *   Feature works via Desktop API.
+*   Feature works via CLI (debug parity).
 *   Feature works via Web UI (if applicable).

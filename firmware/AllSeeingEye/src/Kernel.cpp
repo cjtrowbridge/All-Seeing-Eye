@@ -12,6 +12,8 @@
 #include "Scheduler.h"
 #include <time.h>
 #include <esp_sntp.h>
+#include "Geolocation.h"
+#include "BleRangingManager.h"
 
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
@@ -93,6 +95,12 @@ void Kernel::setup() {
     // 8. Task Scheduler
     Scheduler::instance().begin();
 
+    // 8.5 Geolocation Core Service
+    GeolocationService::instance().begin();
+
+    // 8.6 BLE Ranging Manager (Core 0 service)
+    // BleRangingManager::instance().begin(); // Moved to Plugin
+
     // 9. Start Plugin Task (Core 1)
     xTaskCreatePinnedToCore(
         pluginTask,   // Function
@@ -130,6 +138,8 @@ void Kernel::loop() {
     ArduinoOTA.handle();
     PeerManager::instance().loop(); // Handle Discovery
     Scheduler::instance().loop();   // Handle Tasks
+    GeolocationService::instance().loop();
+    // BleRangingManager::instance().loop(); // Moved to Plugin
 
     // WiFi handling, OTA, etc implicitly handled by events
     // We can add watchdog or status logging here

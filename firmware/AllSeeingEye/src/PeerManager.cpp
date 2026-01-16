@@ -317,5 +317,40 @@ void PeerManager::populatePeers(JsonArray& arr) {
         // Mark as offline if not seen in 2 minutes (scans happen every 30s)
         bool isOnline = (millis() - p.lastSeen < 120000);
         obj["online"] = isOnline;
+
+        // BLE Stats
+        JsonArray rssiArr = obj["ble_rssi"].to<JsonArray>();
+        for(int r : p.bleRssiHistory) rssiArr.add(r);
+        
+        if (p.bleDistance > 0) obj["ble_dist_m"] = p.bleDistance;
+        else obj["ble_dist_m"] = nullptr;
+    }
+}
+
+void PeerManager::updateBleStats(const std::vector<std::pair<String, int>>& foundPeers) {
+    for (auto &p : _peers) {
+        int rssi = -99;
+        // Check if this peer was found
+        for (const auto& dev : foundPeers) {
+            if (dev.first.equalsIgnoreCase(p.hostname)) {
+                rssi = dev.second;
+                break;
+            }
+        }
+
+        // Add to history
+        p.bleRssiHistory.push_back(rssi);
+        if (p.bleRssiHistory.size() > 5) {
+            p.bleRssiHistory.erase(p.bleRssiHistory.begin());
+        }
+
+        // Distance Estimate (Simple Path Loss)
+        // RSSI = -59 - 10 * 2.5 * log10(d)
+        if (rssi > -90 && rssi < 0) {
+             float ratio = (-59.0f - rssi) / (10.0f * 2.5f);
+             p.bleDistance = pow(10.0f, ratio);
+        } else {
+             p.bleDistance = -1.0f;
+        }
     }
 }

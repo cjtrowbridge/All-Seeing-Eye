@@ -96,66 +96,138 @@ The Web Dashboard (`/index.html`) includes a live **Topology Map** visualizing t
     -   Clusters visualized in Web UI Tree View.
     -   Configurable **Cluster Name** and **Ignore Hours**.
 
-## Phase 5: Radio Task Queue Architecture (Partial)
-- [x] **Task Object & Scheduler**: Abstract `RadioTask` struct and `Scheduler` FIFO class.
-- [x] **Startup Stages**: Implement POST -> Infrastructure -> Startup Queue -> App Loop lifecycle.
-- [ ] **Startup Tasks**:
-    - [x] `RadioHardwareTest`: Validate CC1101 SPI.
-    - [ ] `GeolocationScan`: Looks at different possible approaches and applies confidence over time to build a location fix. Tries to identify evidence of movement or stationarity and report this to apps and plugins that need to know the location and vector of the node in order to do their tasks.
-        - [ ] **Precision Approach (GPS)**:
-             - [ ] If a GPS module is connected, use that.
-        - [ ] **Native Approach (No GPS)**
-             - [ ] **Relative Positioning (MDS)**: Broadcast/Receive packets between nodes in the cluster to build a relative distance map using RSSI.
-             - [ ] **BLE Ranging**: Use the ESP32's Bluetooth radio to range-find with peers and static beacons. Provides high-resolution close-range data (<20m) and helps detect movement vs. stationarity.
-             - [ ] **Absolute Anchoring (WiFi)**: Scan nearby Wifi BSSIDs and query Geolocation API (15-30m absolute), then use the RSSI to each node in the cluster to determine the distance and relative position of our nodes versus the BSSIDs in order to locate all of our nodes.
-        - [ ] **VLBI / TDOA (Macroscopic)**:
-             - [ ] If the nodes in the cluster are sufficiently far apart, TDOA may be a feasible approach to triangulate position based on signal arrival times from known broadcast origins (e.g., FM Radio, TV Towers, Cell Towers).
-        - [ ] **Mesh-Assisted Localization**:
-             - [ ] Passive listening for single-hop packets from Meshtastic nodes with GPS.
-             - [ ] RSSI trilateration using path loss models from known anchors.
-             - [ ] The system essentially operates in reverse: instead of using a known location and RSSI from multiple nodes to locate an arbitrary broadcast, we use a known broadcast location and RSSI to precisely locate our own nodes.
-    - [ ] `BackgroundNoiseCalibration`: Measure noise floor (replaces Cluster Discovery).
-        - [ ] Sweep all supported bands (315MHz, 433MHz, 868MHz, 915MHz, 928MHz).
-        - [ ] Account for and advise about LNA presence, SWR issues, etc.
-- [ ] **Operational Tasks**:
-    - [ ] `WiFiBluetoothCensus`: Temporarily disconnects to scan all 2.4GHz devices (Wi-Fi/BT) for RSSI-based triangulation of all devices seen, then reconnects wifi after a specified delay.
-- [ ] **Queue API**:
-    - [x] `GET /api/queue`: List pending tasks.
-    - [ ] `POST /api/queue`: Add new task.
-    - [ ] `DELETE /api/queue/{id}`: Cancel/Remove task.
-- [ ] **Preemption Logic**: Handling interrupt-priority commands vs background scanning.
+## Phase 5: Task-Oriented Architecture (In Progress)
+The system has pivoted from always-on background services to an On-Demand Task Architecture to respect ESP32 resource constraints.
 
-## Phase 6: Telemetry & Peripheral Expansion
-- [ ] **Geolocation Hardware Support**:
-    - [ ] **GPS Module**: UART NMEA parsing (GY-NEO6MV2) for precision anchoring.
-    - [ ] **Mesh GPS**: Active request for coordinates from attached node.
+### 5.1 The Task Registry (Framework)
+- [x] **Plugin Framework**:
+    - [x] `ASEPlugin`: Abstract base class implementation.
+    - [x] `PluginManager`: Handles loading/unloading and exclusive resource locking.
+    - [x] **Discovery API (`GET /api/task`)**: Returns catalog of available tasks.
+        -   Grouped by Plugin Name.
+        -   Includes Task ID, Description, and Link.
+- [x] **Task Execution API**:
+    - [ ] `GET /api/task/{taskId}`: Returns schema/form definition for the task (inputs required).
+    - [x] `POST /api/task/{taskId}`: Submits parameters and starts execution.
+        -   **UX Flow**: Response replaces the UI "Working" container with results table/heading.
+- [x] **Core Plugins To Implement**:
+    -   See [Detailed Breakdown](#phase-6-core-plugins) below.
+
+### 5.2 WebUI Implementation (Task Runner)
+The Web Interface must dynamically render available tasks and handle the execution flow.
+- [ ] **Catalog Rendering (Navigation)**:
+    - [ ] Fetch catalog from `GET /api/task`.
+    - [ ] Render groupings by Plugin Name (e.g., `<h3>BLE Ranging</h3>`).
+    - [ ] Render buttons for each task under the appropriate heading.
+- [ ] **Dynamic Form Generation (Task Panel)**:
+    - [ ] **Action**: Clicking a task button triggers `GET /api/task/{taskId}` to fetch input schema.
+    - [ ] **Render**: Clear the Task View (Right/Center Column) and generate an HTML Form based on the schema.
+    - [ ] **Validation**: Ensure required fields are marked and validated before submission.
+- [ ] **Execution State**:
+    - [ ] **Submission**: On form submit, serialize data to JSON.
+    - [ ] **UI Update**: Remove Form -> Display "Working..." / Spinner message.
+    - [ ] **Request**: Send `POST /api/task/{taskId}` with JSON payload.
+- [ ] **Result Rendering**:
+    - [ ] **Response**: Await completion response (HTML snippet or JSON).
+    - [ ] **UI Update**: Remove "Working..." -> Inject Response HTML into the Task Panel.
+
+### 5.3 Geolocation (On-Demand Plugin)
+Moved from background service to requested task.
+- [ ] **Features**:
+    -   `Fix Acquisition`: Power up GPS (if avail) or run WiFi/BLE anchor scan. High power usage.
+    -   `Motion Baseline`: Short sampling period to detect movement vectors.
+    -   `Confidence Recalibration`: Re-assess cached location vs new signals.
+- [ ] **Architecture**:
+    -   Plugin owns the Geolocation State.
+    -   Results persist in `/api/status` (cached) after task completes.
+
+---
+
+# Phase 6: Core Plugins (Detailed Plan)
+The following plugins will be implemented using the new Task Registry framework.
+
+## 6.1 BLE Ranging Plugin
+*   **Heading**: BLE Ranging
+*   **Tasks**:
+    1.  **Peer Ranging**:
+        *   *Endpoint*: `/api/task/ble-ranging/peer`
+        *   *Inputs*: Duration (ms), Target Peer (Optional).
+        *   *Action*: Active scan + RSSI history logging.
+    2.  **Device Survey**:
+        *   *Endpoint*: `/api/task/ble-ranging/survey`
+        *   *Inputs*: Scan Window (ms), Filter (Manufacturer/Service).
+        *   *Action*: Lists all nearby BLE MACs and payloads.
+
+## 6.2 Geolocation Plugin
+*   **Heading**: Geolocation
+*   **Tasks**:
+    1.  **Fix Acquisition**:
+        *   *Endpoint*: `/api/task/geolocation/fix`
+        *   *Inputs*: Timeout (ms), Desired Accuracy (m).
+        *   *Action*: Aggregates GPS + WiFi anchors. Returns Lat/Lon/Alt.
+    2.  **Motion Baseline**:
+        *   *Endpoint*: `/api/task/geolocation/motion`
+        *   *Inputs*: Sample Duration (s).
+        *   *Action*: Detects if node is stationary or moving.
+    3.  **Confidence Recalibration**:
+        *   *Endpoint*: `/api/task/geolocation/recalibrate`
+        *   *Action*: Checks current fix against new evidence without full acquisition.
+
+## 6.3 RF Diagnostics Plugin
+*   **Heading**: RF Diagnostics
+*   **Tasks**:
+    1.  **Noise Floor Check**:
+        *   *Endpoint*: `/api/task/rf-diag/noise`
+        *   *Inputs*: Frequency Band (e.g., 915MHz).
+        *   *Action*: Measures RSSI without sync word/packet logic.
+    2.  **RSSI Snapshot**:
+        *   *Endpoint*: `/api/task/rf-diag/rssi`
+        *   *Action*: Quick sample of ambient energy.
+    3.  **Antenna Health Check**:
+        *   *Endpoint*: `/api/task/rf-diag/antenna`
+        *   *Action*: (Experimental) Heuristic check of VSWR proxy (if HW supports) or signal consistency.
+
+## 6.4 Spectrum Analysis Plugin
+*   **Heading**: Spectrum Analysis
+*   **Tasks**:
+    1.  **Band Scan**:
+        *   *Endpoint*: `/api/task/spectrum/scan`
+        *   *Inputs*: Start Freq, Stop Freq, Step.
+        *   *Action*: Standard sweep, returns CSV/JSON array of power levels.
+    2.  **Peak Hold Sweep**:
+        *   *Endpoint*: `/api/task/spectrum/peak`
+        *   *Inputs*: Duration.
+        *   *Action*: Runs multiple sweeps, keeping only max values.
+## 6.5 Meshtastic Surveillance Plugin
+*   **Heading**: Meshtastic Surveillance
+*   **Tasks**:
+    1.  **Traffic Monitor**:
+        *   *Endpoint*: `/api/task/meshtastic/monitor`
+        *   *Inputs*: Duration, Channel Index.
+        *   *Action*: Logs all seen packets with RSSI/SNR metrics to identify active talkers.
+    2.  **Origin Ranging**:
+        *   *Endpoint*: `/api/task/meshtastic/ranging`
+        *   *Inputs*: Target Node ID.
+        *   *Action*: Analyzes signal strength and hop counts of incoming messages to estimate physical proximity.
+    3.  **Network Traceroute**:
+        *   *Endpoint*: `/api/task/meshtastic/trace`
+        *   *Inputs*: Target Node ID.
+        *   *Action*: Performs an active traceroute to map the hop path and locate the node within the mesh topology.
+
+---
+
+## Phase 7: Telemetry & Peripheral Expansion
 - [ ] **Hardware Probe**:
     - [ ] **Serial Probe**: Detect attached GPS (NMEA) or Meshtastic node on boot.
     - [ ] **I2C Scanner**: Auto-detect connected environment sensors (Temp, Air Quality, Geiger).
 - [ ] **Meshtastic Integration**:
     - [ ] Serial API Client: Send/Receive messages via attached mesh node.
     - [ ] Configurable Channel: "Announce to Public" vs "Private Group".
-    - [ ] **Chat Surveillance & Location**:
-        - [ ] Monitor selected Public/Private channels.
-        - [ ] **Single-Hop**: Geolocate sender via RSSI-trilateration.
-        - [ ] **Multi-Hop**: Estimate distance/vector via Hop Count + Last-Hop neighbor RSSI-trilateration.
-        - [ ] **Topology Mapping**: Use traceroutes to build a map of the mesh web, pinning nodes that report location or where we can locate them via RSSI-trilateration.
-- [ ] **BLE Proximity & Consensus (Architecture)**:
-    - [ ] **Dual-Role Operation**: ESP32 acts as both GAP Peripheral (Beacon) and GAP Central (Scanner).
-        -   **Advertising**: Broadcasts `ClusterID` + `NodeID` + `TxPower` @ 1Hz.
-        -   **Scanning**: Periodic windows to detect peers.
-    - [ ] **Coexistence Strategy (Radio Time-Slicing)**:
-        -   **Interval**: 1 scan window (e.g., 200ms) every 5-10 seconds to protect Wi-Fi throughput.
-        -   **Adaptive Rate**: If RSSI variance < Threshold (Stationary) for 3 cycles, step down to 30s interval.
-    - [ ] **Synchronized Sampling (Natural Consensus)**:
-        -   Goal: Ensure all nodes measure each other at roughly the same moment for valid geometry.
-        -   Mechanism: Use NTP time modulo (e.g., `UnixTime % 10 == 0`) to align scan windows across the cluster without complex negotiation.
 - [ ] **Universal Telemetry Bus**:
     - [ ] Standardized polling for arbitrary sensors.
     - [ ] User-configurable announcement intervals.
-    - [ ] Fallback Geolocation: Use attached GPS if available, else standard Wi-Fi/Radio fingerprinting.
 
-## Phase 7: Distributed Coordination
+## Phase 8: Distributed Coordination
 - [ ] **Advanced Synchronization (VLBI)**:
     - [ ] **Microsecond Precision**: Track sub-second drift against GPS PPS if available.
     - [ ] **Multi-Transport Sync**: Support sync via Wi-Fi (NTP/PTP) and Meshtastic/LoRa (Custom Beacon).
@@ -164,10 +236,10 @@ The Web Dashboard (`/index.html`) includes a live **Topology Map** visualizing t
 - [ ] **Sychronized Scanning**: Cluster leader designates frequency sweep windows and satart times, based on precisely synchronized time.
 - [ ] **TDOA/RSSI Triangulation**: Aggregating data from the cluster to locate the sources of many broadcasts seen simultaneously in a sweep.
 
-## Phase 8: Mesh Parity (Transport Independence)
+## Phase 9: Mesh Parity (Transport Independence)
 - [ ] **Transport Agnosticism**: API, Telemetry, and Cluster Control must function transparently over both Wi-Fi and Meshtastic.
 - [ ] **Remote Node Equivalence**: A remote node on the mesh should appear in the local Cluster UI just like a Wi-Fi peer.
-- [ ] **Bandwidth Optimization**: Protocol compression to support full C2 (Command & Control) over low-bandwidth LoRa links.
+- [ ] **Bandwidth Optimization**: Protocol compression to support full C2 (Command & Control) over low-bandwidth LoRa links. Since commands are small and text-based, this is highly feasible.
 
 ---
 

@@ -33,15 +33,23 @@ $BuildDir   = "$PSScriptRoot\build"
 $LibPath    = "$PSScriptRoot\libraries"
 $HostsFile  = "$PSScriptRoot\known_hosts.txt"
 
+# OTA Retry Behavior
+$RetryDelaySeconds = 10
+
 # Outputs
 $BinPath    = "$BuildDir\AllSeeingEye.ino.bin"
 $CompileLog = "$BuildDir\compile.log"
 
 # --- EXECUTION ---
 
+# 0. Clean up old artifacts
+Write-Host "[0/3] Cleaning up old logs..." -ForegroundColor Cyan
+if (Test-Path $CompileLog) { Remove-Item $CompileLog -Force }
+Get-ChildItem -Path $BuildDir -Filter "upload_*.log" | Remove-Item -Force -ErrorAction SilentlyContinue
+
 # 1. Pack Web Assets
 Write-Host "[1/3] Packing Web Assets..." -ForegroundColor Cyan
-Start-Process python -ArgumentList "`"$PSScriptRoot\pack_web.py`"" -Wait -NoNewWindow
+Start-Process python -ArgumentList "`"$PSScriptRoot\pack_web.py`"" -Wait -NoNewWindow -WorkingDirectory "$PSScriptRoot"
 
 # 1.5 Generate Build ID
 $BuildId = -join ((48..57) + (97..102) | Get-Random -Count 8 | % {[char]$_})
@@ -63,12 +71,18 @@ if (!(Test-Path $BuildDir)) { New-Item -ItemType Directory -Path $BuildDir | Out
 
 Write-Host "      Logs: $CompileLog" -ForegroundColor Gray
 
+# Temporarily allow stderr (warnings) without throwing exception
+$OldEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+
 & $CliPath compile `
     --fqbn "$Fqbn" `
     --build-path "$BuildDir" `
     --libraries "$LibPath" `
     "$SketchDir" `
     2>&1 | Tee-Object -FilePath $CompileLog
+
+$ErrorActionPreference = $OldEAP
 
 if ($LASTEXITCODE -ne 0) {
         Write-Error "Compilation Failed. Check $CompileLog for details."
@@ -87,6 +101,7 @@ if (Test-Path $HostsFile) {
         if ([string]::IsNullOrWhiteSpace($h)) { continue }
         $target = $h.Trim()
         $uploadLog = "$BuildDir\upload_$target.log"
+        $uploadErrLog = "$BuildDir\upload_${target}_err.log"
 
         Write-Host "`n---------------------------------------------------" -ForegroundColor Gray
         Write-Host "Target: $target" -ForegroundColor Yellow
@@ -98,13 +113,30 @@ if (Test-Path $HostsFile) {
             
             # Run espota via Start-Process -Wait
             # Separate StdOut and StdErr logs
-            $p = Start-Process -FilePath $EspOtaPath -ArgumentList "-i", "$target", "-p", "3232", "-f", "`"$BinPath`"" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $uploadLog -RedirectStandardError "$BuildDir\upload_${target}_err.log"
+            $p = Start-Process -FilePath $EspOtaPath -ArgumentList "-i", "$target", "-p", "3232", "-f", "`"$BinPath`"" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $uploadLog -RedirectStandardError $uploadErrLog
             
             if ($p.ExitCode -eq 0) {
                 Write-Host " SUCCESS" -ForegroundColor Green
             } else {
                 Write-Host " FAILED" -ForegroundColor Red
                 Write-Host "    (See $uploadLog)" -ForegroundColor Red
+
+                Write-Host "  Rebooting $target via API and retrying..." -ForegroundColor Yellow
+                try {
+                    Invoke-RestMethod -Method Post -Uri "http://$target/api/reboot" -TimeoutSec 5 | Out-Null
+                    Start-Sleep -Seconds $RetryDelaySeconds
+                } catch {
+                    Write-Host "    Reboot request failed: $($_.Exception.Message)" -ForegroundColor Red
+                }
+
+                Write-Host "  Retrying upload..." -NoNewline
+                $pRetry = Start-Process -FilePath $EspOtaPath -ArgumentList "-i", "$target", "-p", "3232", "-f", "`"$BinPath`"" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $uploadLog -RedirectStandardError $uploadErrLog
+                if ($pRetry.ExitCode -eq 0) {
+                    Write-Host " SUCCESS" -ForegroundColor Green
+                } else {
+                    Write-Host " FAILED" -ForegroundColor Red
+                    Write-Host "    (See $uploadLog)" -ForegroundColor Red
+                }
             }
         } else {
             Write-Host "  Status: OFFLINE (Skipping)" -ForegroundColor Red
