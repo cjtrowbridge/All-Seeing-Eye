@@ -56,6 +56,12 @@ void WebServerManager::setupRoutes() {
         
         if (Config::instance().updateFromJson(jsonStr)) {
             Logger::instance().info("Config", "Settings updated via API");
+            JsonObject obj = json.as<JsonObject>();
+            if (obj.containsKey("timezone")) {
+                String timezone = Config::instance().getTimezone();
+                Kernel::instance().applyTimezone(timezone);
+                Logger::instance().info("Kernel", "Timezone updated: %s", timezone.c_str());
+            }
             request->send(200, "application/json", "{\"status\":\"success\", \"message\":\"Config Updated. Reboot to apply network changes.\"}");
             // Optional: Config::instance().save(); // Preferences are auto-saved in close/put
         } else {

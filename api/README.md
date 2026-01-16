@@ -75,8 +75,8 @@ The following routes are registered in `firmware/AllSeeingEye/src/WebServer.cpp`
 | `/api/fs` | GET | List files in LittleFS |
 | `/api/peers` | GET | Peer registry from the node |
 | `/api/ping?target=IP` | GET | Ping a specific IP |
-| `/api/logs` | GET | Runtime log buffer (tail) |
-| `/api/logs/head` | GET | Startup log buffer (head) |
+| `/api/logs` | GET | Runtime log buffer (tail), timestamps use device timezone |
+| `/api/logs/head` | GET | Startup log buffer (head), includes applied timezone entry |
 | `/api/led?r=R&g=G&b=B` | GET | Set LED color and return LED status |
 | `/api/led/on` | POST | Enable LED output |
 | `/api/led/off` | POST | Disable LED output |

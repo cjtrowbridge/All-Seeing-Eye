@@ -31,6 +31,7 @@ This playbook describes the process for compiling, packing web assets, and deplo
 3.  **Monitor the Output**
     *   **Phase 1: Packing Web Assets**: The script runs `pack_web.py`. Ensure it says "[PACK] Done."
     *   **Phase 2: Compiling Firmware**: The script calls `arduino-cli`. This process takes 30-60 seconds.
+        *   **Do not continue** until the script prints `All Tasks Completed.`
         *   *If it fails*: The error log is at `build/compile.log`. Read it to diagnose (usually missing libraries or syntax errors).
     *   **Phase 3: Deployment**: The script iterates through `known_hosts.txt`.
 

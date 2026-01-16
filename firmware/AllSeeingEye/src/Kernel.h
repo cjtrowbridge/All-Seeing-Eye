@@ -23,6 +23,7 @@ public:
     bool isTimeSynced();
     time_t getEpochTime();
     String getTimezone();
+    void applyTimezone(const String& timezone);
 
 private:
     Kernel();
@@ -32,7 +33,6 @@ private:
     void setupWiFi();
     void setupOTA();
     void setupTimeSync();
-    void applyTimezone(const String& timezone);
     
     // Core 1 Task
     static void pluginTask(void* parameter);

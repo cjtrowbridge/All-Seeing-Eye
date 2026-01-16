@@ -63,22 +63,16 @@ if (!(Test-Path $BuildDir)) { New-Item -ItemType Directory -Path $BuildDir | Out
 
 Write-Host "      Logs: $CompileLog" -ForegroundColor Gray
 
-# Use Start-Process with -Wait to ensure blocking execution
-# We use PassThru to capture the process object and get the ExitCode
-# StdOut and StdErr must be different files to avoid locking contention
-# Outputs
-$BinPath    = "$BuildDir\AllSeeingEye.ino.bin"
-$CompileLog = "$PSScriptRoot\compile.log"
+& $CliPath compile `
+    --fqbn "$Fqbn" `
+    --build-path "$BuildDir" `
+    --libraries "$LibPath" `
+    "$SketchDir" `
+    2>&1 | Tee-Object -FilePath $CompileLog
 
-# --- EXECUTION ---
-# Use Start-Process with -Wait to ensure blocking execution
-# We use PassThru to capture the process object and get the ExitCode
-# StdOut and StdErr must be different files to avoid locking contention
-$p = Start-Process -FilePath $CliPath -ArgumentList "compile", "--fqbn", "$Fqbn", "--build-path", "`"$BuildDir`"", "--libraries", "`"$LibPath`"", "`"$SketchDir`"" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $CompileLog -RedirectStandardError "$PSScriptRoot\compile_err.log"
-
-if ($p.ExitCode -ne 0) { 
-    Write-Error "Compilation Failed. Check $CompileLog for details."
-    exit 1 
+if ($LASTEXITCODE -ne 0) {
+        Write-Error "Compilation Failed. Check $CompileLog for details."
+        exit 1
 }
 
 # 3. Fleet Deployment

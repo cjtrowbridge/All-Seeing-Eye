@@ -16,6 +16,33 @@
 // Secrets are currently used for hardcoded WiFi fallback
 #include "../secrets.h" 
 
+namespace {
+struct TimezoneMapping {
+    const char* iana;
+    const char* posix;
+};
+
+const TimezoneMapping kTimezoneMappings[] = {
+    {"America/Los_Angeles", "PST8PDT,M3.2.0,M11.1.0"},
+    {"America/Denver", "MST7MDT,M3.2.0,M11.1.0"},
+    {"America/Chicago", "CST6CDT,M3.2.0,M11.1.0"},
+    {"America/New_York", "EST5EDT,M3.2.0,M11.1.0"},
+    {"America/Phoenix", "MST7"},
+    {"America/Anchorage", "AKST9AKDT,M3.2.0,M11.1.0"},
+    {"Pacific/Honolulu", "HST10"},
+    {"UTC", "UTC0"}
+};
+
+String normalizeTimezone(const String& timezone) {
+    for (size_t i = 0; i < (sizeof(kTimezoneMappings) / sizeof(kTimezoneMappings[0])); ++i) {
+        if (timezone.equalsIgnoreCase(kTimezoneMappings[i].iana)) {
+            return String(kTimezoneMappings[i].posix);
+        }
+    }
+    return timezone;
+}
+}
+
 Kernel& Kernel::instance() {
     static Kernel _instance;
     return _instance;
@@ -197,20 +224,27 @@ void Kernel::setupWiFi() {
 
 void Kernel::setupTimeSync() {
     String timezone = Config::instance().getTimezone();
-    applyTimezone(timezone);
+    String tzApplied = normalizeTimezone(timezone);
+    applyTimezone(tzApplied);
+
+    Logger::instance().info("Kernel", "Timezone set: %s", timezone.c_str());
+    if (tzApplied != timezone) {
+        Logger::instance().info("Kernel", "Timezone POSIX: %s", tzApplied.c_str());
+    }
 
     if (WiFi.status() != WL_CONNECTED) {
         Logger::instance().warn("Kernel", "Skipping SNTP init: WiFi not connected");
         return;
     }
 
-    Logger::instance().info("Kernel", "Configuring SNTP: %s", timezone.c_str());
-    configTzTime(timezone.c_str(), "pool.ntp.org", "time.nist.gov");
+    Logger::instance().info("Kernel", "Configuring SNTP: %s", tzApplied.c_str());
+    configTzTime(tzApplied.c_str(), "pool.ntp.org", "time.nist.gov");
     sntp_set_sync_interval(60 * 60 * 1000);
 }
 
 void Kernel::applyTimezone(const String& timezone) {
-    setenv("TZ", timezone.c_str(), 1);
+    String tzApplied = normalizeTimezone(timezone);
+    setenv("TZ", tzApplied.c_str(), 1);
     tzset();
 }
 

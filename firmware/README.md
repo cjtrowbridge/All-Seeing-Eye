@@ -16,7 +16,7 @@
 4.  **Logging & Debugging**:
     -   **Rule**: Do NOT create ad-hoc text files (e.g., `output.txt`, `debug.txt`) in the repo. They clutter the git history.
     -   **Rule**: If you must dump output to a file, use the `.log` extension (e.g., `build.log`), as these are globally ignored by `.gitignore`.
-    -   **Rule**: Log timestamps use wall-clock time (NTP-synced) and fall back to Unix epoch seconds before sync.
+    -   **Rule**: Log timestamps use the configured device timezone (NTP-synced) and fall back to Unix epoch seconds before sync. Startup head logs include the applied timezone.
 
 5.  **Regulatory Compliance (NO TX)**:
     -   **Rule**: The CC1101 radio must be operated in **RX (Receive) Mode ONLY**.
@@ -80,6 +80,7 @@ The Web Dashboard (`/index.html`) includes a live **Topology Map** visualizing t
         - [x]  Configure `configTime` with `pool.ntp.org` and proper timezone handling (Los Angeles).
         - [x]  Implement `Kernel::isTimeSynced()` validator (Checks Year > 2025).
         - [x]  Enable time zone configuration via `/api/config` (string, e.g., "America/Los_Angeles") and persist in NVS
+        - [x]  Map common IANA timezones to POSIX TZ rules for localtime/log formatting.
         - [x]  Make timezone editable in webui under device tab.
     - [x] **API Visibility**: 
         - [x]  Add `time` (Unix Epoch) and `ntp_sync` (bool) to `/api/status`.
