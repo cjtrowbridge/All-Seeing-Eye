@@ -44,9 +44,10 @@ void HAL::init() {
     int state = _radio->begin();
     if (state == RADIOLIB_ERR_NONE) {
         Logger::instance().info("HAL", "Radio Init OK (CC1101 detected)");
-        // Set basic defaults?
+        _hasRadio = true;
     } else {
         Logger::instance().error("HAL", "Radio Init FAILED code: %d", state);
+        _hasRadio = false;
     }
 }
 
@@ -89,8 +90,10 @@ CC1101* HAL::getRadio() {
 }
 
 bool HAL::checkRadio() {
-    // If init failed, _radio pointer is still valid but hardware might be bad?
-    // Let's check status directly by reading a register or checking state?
-    // For now we rely on the init result logged above.
-    return true; 
+    // Return the cached POST result
+    return _hasRadio; 
 }
+
+bool HAL::hasRadio() { return _hasRadio; }
+bool HAL::hasGPS() { return _hasGPS; }
+bool HAL::hasMeshtastic() { return _hasMeshtastic; }

@@ -45,7 +45,9 @@ $CompileLog = "$BuildDir\compile.log"
 # 0. Clean up old artifacts
 Write-Host "[0/3] Cleaning up old logs..." -ForegroundColor Cyan
 if (Test-Path $CompileLog) { Remove-Item $CompileLog -Force }
-Get-ChildItem -Path $BuildDir -Filter "upload_*.log" | Remove-Item -Force -ErrorAction SilentlyContinue
+if (Test-Path $BuildDir) {
+    Get-ChildItem -Path $BuildDir -Filter "upload_*.log" | Remove-Item -Force -ErrorAction SilentlyContinue
+}
 
 # 1. Pack Web Assets
 Write-Host "[1/3] Packing Web Assets..." -ForegroundColor Cyan

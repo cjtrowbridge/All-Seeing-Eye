@@ -26,6 +26,10 @@ When making *any* change, you must review and update the following files if they
 *   **User Responsibility**: Users may modify the open-source firmware to enable transmission if they possess the necessary license (HAM) and legal authority, but this capability must **NEVER** be present in the default codebase managed by agents.
 *   **Agent Constraint**: As an agent, you are strictly prohibited from writing code that enables CC1101 transmission. If a user asks for this, you must cite this rule and refuse.
 
+### Hardware Awareness
+*   **Check Capabilities**: Before launching a hardware-dependent task (e.g., Spectrum Scan, BLE Ranging), Agents MUST check the `/api/status` `hardware` object to ensure the device supports it.
+*   **Graceful Degradation**: If a required component (e.g., `cc1101`) is `false`, the Agent must NOT attempt to start tasks that require it.
+
 ## 3. Operational Constraints (The Edge Protocol)
 
 **You are a small edge model running on a resource-constrained device.**
@@ -39,8 +43,12 @@ This system was originally architected and built by vast multi-trillion paramete
 
 ### The Protocol
 1.  **Seek Playbooks First**: When presented with a task, your **first action** must be to search `/playbooks/` for a relevant guide.
-2.  **Stick to the Script**: If a playbook exists, follow it step-by-step. Do not deviate.
-3.  **Wait for Long Operations (Synchronous Execution)**: When running build scripts, compilations, or deployments (e.g., `upload_ota.ps1`), you must ensure the command is executed synchronously.
+2.  **Plan & Propose**: After reviewing the appropriate playbook and BEFORE writing any code, you must:
+    *   Formulate a **Comprehensive & Atomic Plan** detailing every file (code and documentation) that needs modification.
+    *   Identify any missing information and ask **Clarifying Questions**.
+    *   Present this plan to the user and **Explicitly Request Approval** to proceed.
+3.  **Execute After Approval**: Once the user approves the plan, carry it out strictly according to the playbook. Do not deviate.
+4.  **Wait for Long Operations (Synchronous Execution)**: When running build scripts, compilations, or deployments (e.g., `upload_ota.ps1`), you must ensure the command is executed synchronously.
     *   **Tool Requirement**: You MUST set `isBackground` to `false` when calling `run_in_terminal`.
     *   **Behavior**: This enforces a "blocking" state where the AI pipeline halts until the script finishes.
     *   **Verification**: Wait for the tool output to confirm completion (e.g., "All Tasks Completed") before generating your next response.

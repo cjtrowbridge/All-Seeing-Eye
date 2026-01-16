@@ -3,6 +3,7 @@
 #include "WebStatic.h" // Include generated HTML header
 #include "BuildVersion.h" // Include generated Build ID
 #include "Kernel.h" // For status access
+#include "HAL.h" // Add HAL for Hardware Status
 #include "Logger.h" // Add Logger
 #include "RingBuffer.h" // Add RingBuffer
 #include "PluginManager.h" // Add PluginManager
@@ -454,6 +455,12 @@ String WebServerManager::getCachedStatus() {
 
     doc["plugin"] = PluginManager::instance().getActivePluginName();
 
+    // Hardware Status
+    JsonObject hw = doc.createNestedObject("hardware");
+    hw["cc1101"] = HAL::instance().hasRadio();
+    hw["gps"] = HAL::instance().hasGPS();
+    hw["meshtastic"] = HAL::instance().hasMeshtastic();
+
     // LED Status
     JsonObject led = doc.createNestedObject("led");
     led["power"] = HAL::instance().getLedPower();
@@ -465,7 +472,7 @@ String WebServerManager::getCachedStatus() {
 
     // Calculate System Status
     String statusMsg = "Ready";
-    if (!Kernel::instance().isHardwareHealthy()) {
+    if (!HAL::instance().hasRadio()) {
         statusMsg = "Radio Problem: Failed To POST";
     } else {
         String pName = PluginManager::instance().getActivePluginName();

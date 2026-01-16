@@ -411,7 +411,7 @@
                 <div id="work-intro" class="empty-state">
                     <div class="empty-icon">⚡</div>
                     <h3>Ready for Instructions</h3>
-                    <p style="font-size:0.9rem; max-width:200px;">Select a mission from the list to configure and launch.</p>
+                    <p style="font-size:0.9rem; max-width:200px;">Select a task from the list to configure and launch.</p>
                 </div>
 
                 <!-- State 2: Configuration Form -->
@@ -428,7 +428,7 @@
                 <!-- State 3: Execution Running -->
                 <div id="work-running" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100%;">
                     <div class="spinner"></div>
-                    <h2 style="color:var(--accent-color); margin-bottom:5px;">Mission Active</h2>
+                    <h2 style="color:var(--accent-color); margin-bottom:5px;">Task Active</h2>
                     <p id="execution-status-text" style="color:#aaa;">Initiating logic chain...</p>
                     
                     <div id="execution-timer" style="font-family:monospace; font-size:2rem; margin:20px 0; color:#fff;">00:00:00</div>
@@ -438,7 +438,7 @@
                         <div style="display:flex; justify-content:space-between;"><span>Plugin:</span> <span id="q-plugin-monitor" style="color:white">--</span></div>
                     </div>
 
-                    <button class="btn-cancel" onclick="abortTask()" style="margin-top:30px; border-color:var(--danger-color); color:var(--danger-color);">ABORT MISSION</button>
+                    <button class="btn-cancel" onclick="abortTask()" style="margin-top:30px; border-color:var(--danger-color); color:var(--danger-color);">ABORT TASK</button>
                 </div>
 
                 <!-- State 4: Results -->
@@ -1305,7 +1305,7 @@
                 });
                 if (!res.ok) throw new Error("Launch failed");
                 
-                document.getElementById('execution-status-text').textContent = "Mission Active";
+                document.getElementById('execution-status-text').textContent = "Task Active";
                 startExecutionTimer();
                 fetchStatus();
             } catch(e) {

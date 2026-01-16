@@ -98,7 +98,14 @@ Returned in `/api/peers` and the `peers` array of `/api/status`.
 {
   "hostname": "allseeingeye-4ae214",
   "ip": "192.168.1.105",
-  "status": "Idle",
+  "status": "Ready",
+  "hardware": {
+    "cc1101": true,
+    "gps": false,
+    "meshtastic": false
+  }
+}
+```  "status": "Idle",
   "online": true,
   "lastProbe": 1705351234,
   "ble_rssi": [-85, -82, -80, -99, -84],

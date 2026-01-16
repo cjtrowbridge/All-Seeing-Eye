@@ -33,15 +33,25 @@ The All Seeing Eye firmware uses a Plugin architecture. Tasks like "Idle" or "Sp
 
 3.  **Register with Kernel**
     *   **File**: `firmware/AllSeeingEye/src/Kernel.cpp`.
-    *   **Action**: In `bootstrapPlugins()` or `setup()`, verify how plugins are loaded. (Currently, the system might only support switching *to* a task if it's pre-registered or if the Kernel knows about it). *Note: Ensure you include the new header in Kernel.cpp*.
+    *   **Action**: 
+        1. Open `firmware/AllSeeingEye/src/PluginManager.cpp`.
+        2. Locate `getTaskCatalog()`.
+        3. Add a new `catalog.push_back({...})` entry.
+        4. **Naming Convention**: 
+           - The 3rd parameter is the **Plugin Name**. Use a human-readable string with spaces (e.g., "Spectrum Analyzer", "System").
+           - This string is used by the WebUI to group tasks in the catalog headers.
+        5. Map the task ID to your class in `startTask()` and `createPlugin()`.
 
 4.  **Add API Trigger**
     *   Ensure the `TaskManager` or `Kernel` can switch to this task via the `/api/task` endpoint using the `getName()` ID.
 
 5.  **Compile and Deploy**
     *   Follow `how_to_deploy_firmware_updates.md`.
+    *   **WebUI Update**: If you changed metadata, the WebUI (which fetches `/api/task`) will automatically reflect the new grouping without frontend code changes.
 
 ## Verification
 1.  Deploy fw.
-2.  POST `/api/task` with `{"id": "my_new_task"}`.
-3.  Check `/api/status`. The `task` field should show "My New Task".
+2.  Open WebUI (Center Column > Task List).
+3.  Verify your task appears under the correct Group Header.
+4.  Click the task and verify the form loads (params).
+5.  Launch and check `/api/status` for active state.

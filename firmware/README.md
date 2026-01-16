@@ -27,6 +27,16 @@
     -   **Rule**: `/api/status` must embed the latest **Logs** (last N lines) and **Peer List** to support this single-call architecture.
     -   **Reason**: The ESP32 single-core network stack struggles with concurrent HTTP requests. reducing connection overhead improves responsiveness.
 
+# Hardware Abstraction Layer (HAL)
+
+The firmware is designed to run on diverse hardware configurations. The `HAL` class manages driver initialization and sets Capability Flags based on Power-On Self Tests (POST).
+
+The System Kernel uses these flags to determine which tasks can be run. These flags are exposed via `/api/status` so external agents can make informed decisions.
+
+*   `cc1101`: (bool) True if the Sub-GHz radio was detected and initialized successfully on the SPI bus.
+*   `gps`: (bool) True if a dedicated hardware GPS module is connected (UART).
+*   `meshtastic`: (bool) True if a LoRa radio is available for Meshtastic interoperability.
+
 ---
 
 # Roadmap
@@ -46,8 +56,41 @@
 ## Phase 3: Web Dashboard (Completed)
 - [x] Basic SPA structure
 - [x] WebSocket/Poll-based logs
-- [x] **UI Refactor**: Moves stats to footer, fix overlap (Tabbed View).
+- [x] **UI Refactor v2 (Jan 2026)**: 
+    -   Implemented 3-column "Desktop" layout (Environment / Task List / Execution).
+    -   Center column functions as the primary Control interface with a categorized **Task List**.
+    -   Tasks are grouped by Plugin (human-readable headers) for better navigability.
 - [x] **Navbar Enhancements**: Cluster Status with "Sparkle" indicators.
+
+# Web Interface Architecture
+
+## Layout System
+The WebUI (`index.html`) uses a responsive grid layout that adapts between mobile and desktop views:
+
+1.  **Environment (Left)**:
+    -   **Cluster Tree**: Shows local and remote nodes, grouped by cluster name.
+    -   **Topology Map**: Force-directed graph of the mesh network.
+    -   **Logs**: Dual-tab monitor for `Tail` (Live) and `Head` (Boot) logs.
+
+2.  **Controls (Center)**:
+    -   **Task List**: The primary catalog of available operations (Plugins).
+        -   Grouped by **Plugin Name** (e.g., "System", "Spectrum Analyzer").
+        -   Tasks are defined in `PluginManager.cpp` and served via `/api/task`.
+    -   **Device Config**: Settings for Hostname, Identity, Timezone, and LED.
+
+3.  **Workspace (Right)**:
+    -   **Input Form**: Dynamically generated based on the selected task's requirements.
+    -   **Execution State**: Shows live status, spinners, and timers during task execution.
+    -   **Results**: (Planned) Dedicated view for post-mission data analysis.
+
+## Development Workflow
+The WebUI is a single-file application (`firmware/web/index.html`). To modify it:
+
+1.  Edit `firmware/web/index.html`.
+2.  Run `pack_web.py` (in `firmware/`) to compress the HTML into `WebStatic.h` (Gzip + Hex).
+3.  Compile and upload firmware using `upload_ota.ps1`.
+
+**Note**: The ESP32 does not serve the file from a filesystem; it serves the byte array from flash memory for speed and reliability.
 
 # Web Interface & Topology Map
 
