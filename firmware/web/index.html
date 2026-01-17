@@ -1451,11 +1451,14 @@
         
         async function abortTask() {
              try {
-                 await fetch('/api/task', {
+                 const deployRes = await fetch('/api/cluster/deploy', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ plugin: "SystemIdle" }) 
+                    body: JSON.stringify({ task: "system/idle", params: {} })
                 });
+                if (!deployRes.ok) throw new Error("Deploy idle failed");
+                const startRes = await fetch('/api/cluster/start', { method: 'POST' });
+                if (!startRes.ok) throw new Error("Start idle failed");
                 resetWorkspace();
             } catch(e) { alert("Abort failed: " + e); }
         }

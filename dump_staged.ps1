@@ -15,14 +15,14 @@ if (-not $stagedFiles) {
 }
 
 foreach ($file in $stagedFiles) {
-    Write-Host "================================================================================"
-    Write-Host "File: $file"
-    Write-Host "================================================================================"
+    Write-Output "================================================================================"
+    Write-Output "File: $file"
+    Write-Output "================================================================================"
     
     $ext = [System.IO.Path]::GetExtension($file).TrimStart('.')
     if ([string]::IsNullOrWhiteSpace($ext)) { $ext = "text" }
     
-    Write-Host "```$ext"
+    Write-Output ('```' + $ext)
     # Use git show to get the object from the index (staged version)
     # We strip any potential quotes from the filename provided by git
     $gitPath = $file.Trim('"')
@@ -30,7 +30,7 @@ foreach ($file in $stagedFiles) {
     # Run git show, redirecting stderr to null to avoid clutter if something weird happens
     git show ":$gitPath" 2>$null
     
-    Write-Host "```"
-    Write-Host ""
-    Write-Host ""
+    Write-Output '```'
+    Write-Output ""
+    Write-Output ""
 }

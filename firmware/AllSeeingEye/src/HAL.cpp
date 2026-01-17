@@ -97,3 +97,25 @@ bool HAL::checkRadio() {
 bool HAL::hasRadio() { return _hasRadio; }
 bool HAL::hasGPS() { return _hasGPS; }
 bool HAL::hasMeshtastic() { return _hasMeshtastic; }
+
+bool HAL::isCc1101FrequencyAllowed(float mhz) {
+    if (mhz >= kCc1101Band1MinMhz && mhz <= kCc1101Band1MaxMhz) return true;
+    if (mhz >= kCc1101Band2MinMhz && mhz <= kCc1101Band2MaxMhz) return true;
+    if (mhz >= kCc1101Band3MinMhz && mhz <= kCc1101Band3MaxMhz) return true;
+    return false;
+}
+
+bool HAL::isCc1101FrequencyRangeAllowed(float startMhz, float stopMhz) {
+    if (startMhz >= kCc1101Band1MinMhz && stopMhz <= kCc1101Band1MaxMhz) return true;
+    if (startMhz >= kCc1101Band2MinMhz && stopMhz <= kCc1101Band2MaxMhz) return true;
+    if (startMhz >= kCc1101Band3MinMhz && stopMhz <= kCc1101Band3MaxMhz) return true;
+    return false;
+}
+
+bool HAL::isCc1101BandwidthAllowed(float khz) {
+    return khz >= kCc1101MinBandwidthKhz && khz <= kCc1101MaxBandwidthKhz;
+}
+
+bool HAL::isCc1101PowerAllowed(float dbm) {
+    return dbm >= kCc1101MinPowerDbm && dbm <= kCc1101MaxPowerDbm;
+}

@@ -193,6 +193,14 @@ Returned under `/api/report.nodes[*].report` when `spectrum/scan` is active.
 }
 ```
 
+### CC1101 Safety Limits
+The CC1101 limits are enforced in firmware (`HAL`) and reflected in the task input schema.
+
+- Frequency bands: 300–348 MHz, 387–464 MHz, 779–928 MHz
+- Bandwidth: 58–812 kHz
+- Power: -30 to +10 dBm
+- Defaults: 905–928 MHz, 500 kHz, -1 dBm
+
 ## Development Roadmap
 
 This roadmap outlines the steps to build the `v1.0` Python API.

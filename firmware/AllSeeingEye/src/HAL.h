@@ -30,6 +30,29 @@ public:
     // Radio Access
     CC1101* getRadio();
 
+    // CC1101 Safety Limits (Datasheet)
+    static constexpr float kCc1101Band1MinMhz = 300.0f;
+    static constexpr float kCc1101Band1MaxMhz = 348.0f;
+    static constexpr float kCc1101Band2MinMhz = 387.0f;
+    static constexpr float kCc1101Band2MaxMhz = 464.0f;
+    static constexpr float kCc1101Band3MinMhz = 779.0f;
+    static constexpr float kCc1101Band3MaxMhz = 928.0f;
+    static constexpr float kCc1101MinBandwidthKhz = 58.0f;
+    static constexpr float kCc1101MaxBandwidthKhz = 812.0f;
+    static constexpr float kCc1101MinPowerDbm = -30.0f;
+    static constexpr float kCc1101MaxPowerDbm = 10.0f;
+
+    // CC1101 Safe Defaults
+    static constexpr float kCc1101DefaultStartMhz = 905.0f;
+    static constexpr float kCc1101DefaultStopMhz = 928.0f;
+    static constexpr float kCc1101DefaultBandwidthKhz = 500.0f;
+    static constexpr float kCc1101DefaultPowerDbm = -1.0f;
+
+    bool isCc1101FrequencyAllowed(float mhz);
+    bool isCc1101BandwidthAllowed(float khz);
+    bool isCc1101PowerAllowed(float dbm);
+    bool isCc1101FrequencyRangeAllowed(float startMhz, float stopMhz);
+
 private:
     HAL();
     Adafruit_NeoPixel* _pixels;

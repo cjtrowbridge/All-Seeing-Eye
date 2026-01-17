@@ -72,8 +72,6 @@ public:
         if (params.containsKey("start") && params.containsKey("stop")) {
             _startMhz = params["start"].as<float>();
             _stopMhz = params["stop"].as<float>();
-            Logger::instance().info("Spectrum", "Sweep %.2f-%.2f MHz", 
-                _startMhz, _stopMhz);
         }
         if (params.containsKey("bandwidth")) {
             _bandwidthKHz = params["bandwidth"].as<float>();
@@ -81,9 +79,27 @@ public:
         if (params.containsKey("power")) {
             _powerDbm = params["power"].as<float>();
         }
+
+        if (!HAL::instance().isCc1101FrequencyRangeAllowed(_startMhz, _stopMhz)) {
+            Logger::instance().warn("Spectrum", "Invalid freq range %.2f-%.2f MHz. Using defaults.", _startMhz, _stopMhz);
+            _startMhz = HAL::kCc1101DefaultStartMhz;
+            _stopMhz = HAL::kCc1101DefaultStopMhz;
+        }
+
+        if (!HAL::instance().isCc1101BandwidthAllowed(_bandwidthKHz)) {
+            Logger::instance().warn("Spectrum", "Invalid bandwidth %.2f kHz. Using default %.2f kHz.", _bandwidthKHz, HAL::kCc1101DefaultBandwidthKhz);
+            _bandwidthKHz = HAL::kCc1101DefaultBandwidthKhz;
+        }
+
+        if (!HAL::instance().isCc1101PowerAllowed(_powerDbm)) {
+            Logger::instance().warn("Spectrum", "Invalid power %.1f dBm. Using default %.1f dBm.", _powerDbm, HAL::kCc1101DefaultPowerDbm);
+            _powerDbm = HAL::kCc1101DefaultPowerDbm;
+        }
+
         if (_bandwidthKHz > 0.0f) {
             _stepMhz = _bandwidthKHz / 1000.0f;
         }
+        Logger::instance().info("Spectrum", "Sweep %.2f-%.2f MHz", _startMhz, _stopMhz);
         Logger::instance().info("Spectrum", "Bandwidth %.2f kHz | Power %.1f dBm", _bandwidthKHz, _powerDbm);
         resetSweepState();
     }

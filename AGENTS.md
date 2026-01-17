@@ -80,7 +80,7 @@ The repository is divided into three primary domains, each serving a distinct ph
 
 *   **API & Client (`/api`)**
     *   Contains Python libraries, scripts, and interface documentation.
-    *   **Agent Playbooks (`/playbooks`)**: Standard operating procedures and checklists for agents to perform complex tasks (e.g., "Troubleshoot Connectivity", "Deploy New Feature").
+    *   **Agent Playbooks (`/playbooks`)**: Standard operating procedures and checklists for agents to perform complex tasks (e.g., "Troubleshoot Connectivity", "Deploy New Feature", "Commit & Push Changes").
     *   Focus: Providing a bridge for Desktop users and LLMs to interact with, control, and monitor the cluster.
 
 ## 5. Cluster Architecture and Operation

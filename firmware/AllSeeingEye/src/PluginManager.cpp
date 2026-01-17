@@ -8,6 +8,7 @@
 #include "GeolocationPlugin.h"
 #include "RfDiagPlugin.h"
 #include "SpectrumPlugin.h"
+#include "HAL.h"
 #include "MeshtasticPlugin.h"
 #include "TaskTypes.h"
 
@@ -93,49 +94,61 @@ std::vector<TaskDefinition> PluginManager::getTaskCatalog() {
     });
 
     // 5. Spectrum Analysis
-     TaskInputDefinition spectrumStart;
-     spectrumStart.name = "start";
-     spectrumStart.label = "Start Frequency (MHz)";
-     spectrumStart.type = "number";
-     spectrumStart.required = true;
-     spectrumStart.defaultType = INPUT_VALUE_NUMBER;
-     spectrumStart.defaultNumber = 905.0f;
-     spectrumStart.hasStep = true;
-     spectrumStart.step = 0.1f;
+    TaskInputDefinition spectrumStart;
+    spectrumStart.name = "start";
+    spectrumStart.label = "Start Frequency (MHz)";
+    spectrumStart.type = "number";
+    spectrumStart.required = true;
+    spectrumStart.defaultType = INPUT_VALUE_NUMBER;
+    spectrumStart.defaultNumber = HAL::kCc1101DefaultStartMhz;
+    spectrumStart.hasStep = true;
+    spectrumStart.step = 0.1f;
+    spectrumStart.hasMin = true;
+    spectrumStart.min = HAL::kCc1101Band1MinMhz;
+    spectrumStart.hasMax = true;
+    spectrumStart.max = HAL::kCc1101Band3MaxMhz;
 
-     TaskInputDefinition spectrumStop;
-     spectrumStop.name = "stop";
-     spectrumStop.label = "Stop Frequency (MHz)";
-     spectrumStop.type = "number";
-     spectrumStop.required = true;
-     spectrumStop.defaultType = INPUT_VALUE_NUMBER;
-     spectrumStop.defaultNumber = 928.0f;
-     spectrumStop.hasStep = true;
-     spectrumStop.step = 0.1f;
+    TaskInputDefinition spectrumStop;
+    spectrumStop.name = "stop";
+    spectrumStop.label = "Stop Frequency (MHz)";
+    spectrumStop.type = "number";
+    spectrumStop.required = true;
+    spectrumStop.defaultType = INPUT_VALUE_NUMBER;
+    spectrumStop.defaultNumber = HAL::kCc1101DefaultStopMhz;
+    spectrumStop.hasStep = true;
+    spectrumStop.step = 0.1f;
+    spectrumStop.hasMin = true;
+    spectrumStop.min = HAL::kCc1101Band1MinMhz;
+    spectrumStop.hasMax = true;
+    spectrumStop.max = HAL::kCc1101Band3MaxMhz;
 
-     TaskInputDefinition spectrumBandwidth;
-     spectrumBandwidth.name = "bandwidth";
-     spectrumBandwidth.label = "Channel Bandwidth (kHz)";
-     spectrumBandwidth.type = "number";
-     spectrumBandwidth.required = true;
-     spectrumBandwidth.defaultType = INPUT_VALUE_NUMBER;
-     spectrumBandwidth.defaultNumber = 500.0f;
-     spectrumBandwidth.hasStep = true;
-     spectrumBandwidth.step = 1.0f;
+    TaskInputDefinition spectrumBandwidth;
+    spectrumBandwidth.name = "bandwidth";
+    spectrumBandwidth.label = "Channel Bandwidth (kHz)";
+    spectrumBandwidth.type = "number";
+    spectrumBandwidth.required = true;
+    spectrumBandwidth.defaultType = INPUT_VALUE_NUMBER;
+    spectrumBandwidth.defaultNumber = HAL::kCc1101DefaultBandwidthKhz;
+    spectrumBandwidth.hasStep = true;
+    spectrumBandwidth.step = 1.0f;
+    spectrumBandwidth.hasMin = true;
+    spectrumBandwidth.min = HAL::kCc1101MinBandwidthKhz;
+    spectrumBandwidth.hasMax = true;
+    spectrumBandwidth.max = HAL::kCc1101MaxBandwidthKhz;
 
-     TaskInputDefinition spectrumPower;
-     spectrumPower.name = "power";
-     spectrumPower.label = "Broadcast Power (dBm)";
-     spectrumPower.type = "number";
-     spectrumPower.required = true;
-     spectrumPower.defaultType = INPUT_VALUE_NUMBER;
-     spectrumPower.defaultNumber = -1.0f;
-     spectrumPower.hasStep = true;
-     spectrumPower.step = 1.0f;
-     spectrumPower.hasMin = true;
-     spectrumPower.min = -30.0f;
-     spectrumPower.hasMax = true;
-     spectrumPower.max = 11.0f;
+    TaskInputDefinition spectrumPower;
+    spectrumPower.name = "power";
+    spectrumPower.label = "Broadcast Power (dBm)";
+    spectrumPower.type = "number";
+    spectrumPower.required = true;
+    spectrumPower.defaultType = INPUT_VALUE_NUMBER;
+    spectrumPower.defaultNumber = HAL::kCc1101DefaultPowerDbm;
+    spectrumPower.hasStep = true;
+    spectrumPower.step = 1.0f;
+    spectrumPower.hasMin = true;
+    spectrumPower.min = HAL::kCc1101MinPowerDbm;
+    spectrumPower.hasMax = true;
+    spectrumPower.max = HAL::kCc1101MaxPowerDbm;
 
      catalog.push_back({
          "spectrum/scan",

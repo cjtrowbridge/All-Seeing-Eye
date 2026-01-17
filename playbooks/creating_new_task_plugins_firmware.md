@@ -31,6 +31,7 @@ The All Seeing Eye firmware uses a Plugin architecture. Tasks like "Idle" or "Sp
     ```
     *   **Logging Requirement**: Emit logs for task start, key milestones, and failure paths using `Logger::instance()`.
     *   **Synchronization Rule (Spectrum)**: For spectrum sweeps, align sampling to wall-clock boundaries and only sweep when `utc_seconds % 10 == 0`.
+    *   **CC1101 Safety Limits**: Enforce band, bandwidth, and power limits in the plugin (see `HAL` constants) to avoid unsafe configurations.
 
 3.  **Register with Kernel**
     *   **File**: `firmware/AllSeeingEye/src/Kernel.cpp`.

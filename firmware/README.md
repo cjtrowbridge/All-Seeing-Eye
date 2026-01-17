@@ -126,27 +126,27 @@ The Web Dashboard (`/index.html`) includes a live **Topology Map** visualizing t
 ## Phase 4: VLBI Clustering (Backend Completed)
 - [x] **Core Logic**: Default Kernel state is now `SystemIdle` (POST -> Idle).
 - [x] **Unique Identity**:
-    -   Hostnames: `allseeingeye-{hexid}.local` (from MAC address).
+    - [x] Hostnames: `allseeingeye-{hexid}.local` (from MAC address).
 - [x] **Time Synchronization (Foundation)**:
     - [x] **SNTP Integration**: 
-        - [x]  Configure `configTime` with `pool.ntp.org` and proper timezone handling (Los Angeles).
-        - [x]  Implement `Kernel::isTimeSynced()` validator (Checks Year > 2025).
-        - [x]  Enable time zone configuration via `/api/config` (string, e.g., "America/Los_Angeles") and persist in NVS
-        - [x]  Map common IANA timezones to POSIX TZ rules for localtime/log formatting.
-        - [x]  Make timezone editable in webui under device tab.
+        - [x] Configure `configTime` with `pool.ntp.org` and proper timezone handling (Los Angeles).
+        - [x] Implement `Kernel::isTimeSynced()` validator (Checks Year > 2025).
+        - [x] Enable time zone configuration via `/api/config` (string, e.g., "America/Los_Angeles") and persist in NVS
+        - [x] Map common IANA timezones to POSIX TZ rules for localtime/log formatting.
+        - [x] Make timezone editable in webui under device tab.
     - [x] **API Visibility**: 
-        - [x]  Add `time` (Unix Epoch) and `ntp_sync` (bool) to `/api/status`.
+        - [x] Add `time` (Unix Epoch) and `ntp_sync` (bool) to `/api/status`.
     - [x] **Drift Management**: 
-        - [x]  Configure re-sync interval (1hr).
+        - [x] Configure re-sync interval (1hr).
 - [x] **Discovery Protocol**:
-    -   **Zero-Conf**: mDNS (`_allseeingeye._tcp`) auto-discovery.
-    -   **Subnet Scanning**: Automatically scans local /24 subnet (1-254) if isolated.
-    -   **Passive Discovery**: Intercepts requests to `/api/peers` to find new neighbors.
-    -   **Negative Caching**: Ignores non-peer IPs for 12h to reduce network noise.
+    - [x] **Zero-Conf**: mDNS (`_allseeingeye._tcp`) auto-discovery.
+    - [x] **Subnet Scanning**: Automatically scans local /24 subnet (1-254) if isolated.
+    - [x] **Passive Discovery**: Intercepts requests to `/api/peers` to find new neighbors.
+    - [x] **Negative Caching**: Ignores non-peer IPs for 12h to reduce network noise.
 - [x] **Cluster Management**:
-    -   Nodes advertise `cluster` text record in mDNS.
-    -   Clusters visualized in Web UI Tree View.
-    -   Configurable **Cluster Name** and **Ignore Hours**.
+    - [x] Nodes advertise `cluster` text record in mDNS.
+    - [x] Clusters visualized in Web UI Tree View.
+    - [x] Configurable **Cluster Name** and **Ignore Hours**.
 
 ## Phase 5: Task-Oriented Architecture (In Progress)
 The system has pivoted from always-on background services to an On-Demand Task Architecture to respect ESP32 resource constraints.
@@ -156,115 +156,123 @@ The system has pivoted from always-on background services to an On-Demand Task A
     - [x] `ASEPlugin`: Abstract base class implementation.
     - [x] `PluginManager`: Handles loading/unloading and exclusive resource locking.
     - [x] **Discovery API (`GET /api/task`)**: Returns catalog of available tasks.
-        -   Grouped by Plugin Name.
-        -   Includes Task ID, Description, Link, and `inputs` schema.
+        - [x] Grouped by Plugin Name.
+        - [x] Includes Task ID, Description, Link, and `inputs` schema.
 - [x] **Task Execution API**:
     - [x] `POST /api/task/{taskId}`: Submits parameters and starts execution.
-        -   **UX Flow**: Response replaces the UI "Working" container with results table/heading.
-- [x] **Core Plugins To Implement**:
-    -   See [Detailed Breakdown](#phase-6-core-plugins) below.
+        - [x] **UX Flow**: Response replaces the UI "Working" container with results table/heading.
 
 ### 5.2 WebUI Implementation (Task Runner)
 The Web Interface must dynamically render available tasks and handle the execution flow.
-- [ ] **Catalog Rendering (Navigation)**:
-    - [ ] Fetch catalog from `GET /api/task`.
-    - [ ] Render groupings by Plugin Name (e.g., `<h3>BLE Ranging</h3>`).
-    - [ ] Render buttons for each task under the appropriate heading.
-- [ ] **Dynamic Form Generation (Task Panel)**:
-    - [ ] **Action**: Clicking a task button reads the `inputs` schema from the cached `/api/task` catalog.
-    - [ ] **Render**: Clear the Task View (Right/Center Column) and generate an HTML Form based on the schema.
-    - [ ] **Validation**: Ensure required fields are marked and validated before submission.
-- [ ] **Execution State**:
-    - [ ] **Submission**: On form submit, serialize data to JSON.
-    - [ ] **UI Update**: Remove Form -> Display "Working..." / Spinner message.
-    - [ ] **Request**: Send `POST /api/task/{taskId}` with JSON payload.
-- [ ] **Result Rendering**:
-    - [ ] **Response**: Await completion response (HTML snippet or JSON).
-    - [ ] **UI Update**: Remove "Working..." -> Inject Response HTML into the Task Panel.
+- [x] **Catalog Rendering (Navigation)**:
+    - [x] Fetch catalog from `GET /api/task`.
+    - [x] Render groupings by Plugin Name (e.g., `<h3>BLE Ranging</h3>`).
+    - [x] Render buttons for each task under the appropriate heading.
+- [x] **Dynamic Form Generation (Task Panel)**:
+    - [x] **Action**: Clicking a task button reads the `inputs` schema from the cached `/api/task` catalog.
+    - [x] **Render**: Clear the Task View (Right/Center Column) and generate an HTML Form based on the schema.
+    - [x] **Validation**: Ensure required fields are marked and validated before submission.
+- [x] **Execution State**:
+    - [x] **Submission**: On form submit, serialize data to JSON.
+    - [x] **UI Update**: Remove Form -> Display "Deploying..." / Spinner message.
+    - [x] **Request**: Send `POST /api/cluster/deploy` with task payload.
+- [x] **Result Rendering**:
+    - [x] **Execution**: Start is enabled only after cluster alignment; UI calls `POST /api/cluster/start`.
+    - [x] **Report View**: UI polls `/api/report` and renders JSON output.
 
 ### 5.3 Geolocation (On-Demand Plugin)
 Moved from background service to requested task.
 - [ ] **Features**:
-    -   `Fix Acquisition`: Power up GPS (if avail) or run WiFi/BLE anchor scan. High power usage.
-    -   `Motion Baseline`: Short sampling period to detect movement vectors.
-    -   `Confidence Recalibration`: Re-assess cached location vs new signals.
+    - [ ] `Fix Acquisition`: Power up GPS (if avail) or run WiFi/BLE anchor scan. High power usage.
+    - [ ] `Motion Baseline`: Short sampling period to detect movement vectors.
+    - [ ] `Confidence Recalibration`: Re-assess cached location vs new signals.
 - [ ] **Architecture**:
-    -   Plugin owns the Geolocation State.
-    -   Results persist in `/api/status` (cached) after task completes.
+    - [ ] Plugin owns the Geolocation State.
+    - [ ] Results persist in `/api/status` (cached) after task completes.
 
 ---
 
 # Phase 6: Core Plugins (Detailed Plan)
 The following plugins will be implemented using the new Task Registry framework.
 
+- [ ] **6.1 BLE Ranging Plugin**
 ## 6.1 BLE Ranging Plugin
 *   **Heading**: BLE Ranging
 *   **Tasks**:
-    1.  **Peer Ranging**:
-        *   *Endpoint*: `/api/task/ble-ranging/peer`
-        *   *Inputs*: Duration (ms), Target Peer (Optional).
-        *   *Action*: Active scan + RSSI history logging.
-    2.  **Device Survey**:
-        *   *Endpoint*: `/api/task/ble-ranging/survey`
-        *   *Inputs*: Scan Window (ms), Filter (Manufacturer/Service).
-        *   *Action*: Lists all nearby BLE MACs and payloads.
+    1.  [ ] **Peer Ranging**:
+        *   [ ] *Endpoint*: `/api/task/ble-ranging/peer`
+        *   [ ] *Inputs*: Duration (ms), Target Peer (Optional).
+        *   [ ] *Action*: Active scan + RSSI history logging.
+    2.  [ ] **Device Survey**:
+        *   [ ] *Endpoint*: `/api/task/ble-ranging/survey`
+        *   [ ] *Inputs*: Scan Window (ms), Filter (Manufacturer/Service).
+        *   [ ] *Action*: Lists all nearby BLE MACs and payloads.
 
+- [ ] **6.2 Geolocation Plugin**
 ## 6.2 Geolocation Plugin
 *   **Heading**: Geolocation
 *   **Tasks**:
-    1.  **Fix Acquisition**:
-        *   *Endpoint*: `/api/task/geolocation/fix`
-        *   *Inputs*: Timeout (ms), Desired Accuracy (m).
-        *   *Action*: Aggregates GPS + WiFi anchors. Returns Lat/Lon/Alt.
-    2.  **Motion Baseline**:
-        *   *Endpoint*: `/api/task/geolocation/motion`
-        *   *Inputs*: Sample Duration (s).
-        *   *Action*: Detects if node is stationary or moving.
-    3.  **Confidence Recalibration**:
-        *   *Endpoint*: `/api/task/geolocation/recalibrate`
-        *   *Action*: Checks current fix against new evidence without full acquisition.
+    1.  [ ] **Fix Acquisition**:
+        *   [ ] *Endpoint*: `/api/task/geolocation/fix`
+        *   [ ] *Inputs*: Timeout (ms), Desired Accuracy (m).
+        *   [ ] *Action*: Aggregates GPS + WiFi anchors. Returns Lat/Lon/Alt.
+    2.  [ ] **Motion Baseline**:
+        *   [ ] *Endpoint*: `/api/task/geolocation/motion`
+        *   [ ] *Inputs*: Sample Duration (s).
+        *   [ ] *Action*: Detects if node is stationary or moving.
+    3.  [ ] **Confidence Recalibration**:
+        *   [ ] *Endpoint*: `/api/task/geolocation/recalibrate`
+        *   [ ] *Action*: Checks current fix against new evidence without full acquisition.
 
+- [ ] **6.3 RF Diagnostics Plugin**
 ## 6.3 RF Diagnostics Plugin
 *   **Heading**: RF Diagnostics
 *   **Tasks**:
-    1.  **Noise Floor Check**:
-        *   *Endpoint*: `/api/task/rf-diag/noise`
-        *   *Inputs*: Frequency Band (e.g., 915MHz).
-        *   *Action*: Measures RSSI without sync word/packet logic.
-    2.  **RSSI Snapshot**:
-        *   *Endpoint*: `/api/task/rf-diag/rssi`
-        *   *Action*: Quick sample of ambient energy.
-    3.  **Antenna Health Check**:
-        *   *Endpoint*: `/api/task/rf-diag/antenna`
-        *   *Action*: (Experimental) Heuristic check of VSWR proxy (if HW supports) or signal consistency.
+    1.  [ ] **Noise Floor Check**:
+        *   [ ] *Endpoint*: `/api/task/rf-diag/noise`
+        *   [ ] *Inputs*: Frequency Band (e.g., 915MHz).
+        *   [ ] *Action*: Measures RSSI without sync word/packet logic.
+    2.  [ ] **RSSI Snapshot**:
+        *   [ ] *Endpoint*: `/api/task/rf-diag/rssi`
+        *   [ ] *Action*: Quick sample of ambient energy.
+    3.  [ ] **Antenna Health Check**:
+        *   [ ] *Endpoint*: `/api/task/rf-diag/antenna`
+        *   [ ] *Action*: (Experimental) Heuristic check of VSWR proxy (if HW supports) or signal consistency.
 
+- [ ] **6.4 Spectrum Analysis Plugin**
 ## 6.4 Spectrum Analysis Plugin
 *   **Heading**: Spectrum Analysis
 *   **Tasks**:
-    1.  **Band Scan**:
-        *   *Endpoint*: `/api/task/spectrum/scan`
-        *   *Inputs*: Start Freq, Stop Freq, Step.
-        *   *Action*: Standard sweep, returns CSV/JSON array of power levels.
-        *   *Sync Rule*: Sweep only when `utc_seconds % 10 == 0` so clusters sample in lockstep.
-    2.  **Peak Hold Sweep**:
-        *   *Endpoint*: `/api/task/spectrum/peak`
-        *   *Inputs*: Duration.
-        *   *Action*: Runs multiple sweeps, keeping only max values.
+    1.  [x] **Band Scan**:
+        *   [x] *Endpoint*: `/api/task/spectrum/scan`
+        *   [x] *Inputs*: Start Freq, Stop Freq, Step.
+        *   [x] *Action*: Standard sweep, returns CSV/JSON array of power levels.
+        *   [x] *Sync Rule*: Sweep only when `utc_seconds % 10 == 0` so clusters sample in lockstep.
+        *   [x] **CC1101 Limits**:
+            - [x] Frequency bands: 300–348 MHz, 387–464 MHz, 779–928 MHz
+            - [x] Bandwidth: 58–812 kHz
+            - [x] Power: -30 to +10 dBm
+            - [x] Defaults: 905–928 MHz, 500 kHz, -1 dBm
+    2.  [ ] **Peak Hold Sweep**:
+        *   [ ] *Endpoint*: `/api/task/spectrum/peak`
+        *   [ ] *Inputs*: Duration.
+        *   [ ] *Action*: Runs multiple sweeps, keeping only max values.
+- [ ] **6.5 Meshtastic Surveillance Plugin**
 ## 6.5 Meshtastic Surveillance Plugin
 *   **Heading**: Meshtastic Surveillance
 *   **Tasks**:
-    1.  **Traffic Monitor**:
-        *   *Endpoint*: `/api/task/meshtastic/monitor`
-        *   *Inputs*: Duration, Channel Index.
-        *   *Action*: Logs all seen packets with RSSI/SNR metrics to identify active talkers.
-    2.  **Origin Ranging**:
-        *   *Endpoint*: `/api/task/meshtastic/ranging`
-        *   *Inputs*: Target Node ID.
-        *   *Action*: Analyzes signal strength and hop counts of incoming messages to estimate physical proximity.
-    3.  **Network Traceroute**:
-        *   *Endpoint*: `/api/task/meshtastic/trace`
-        *   *Inputs*: Target Node ID.
-        *   *Action*: Performs an active traceroute to map the hop path and locate the node within the mesh topology.
+    1.  [ ] **Traffic Monitor**:
+        *   [ ] *Endpoint*: `/api/task/meshtastic/monitor`
+        *   [ ] *Inputs*: Duration, Channel Index.
+        *   [ ] *Action*: Logs all seen packets with RSSI/SNR metrics to identify active talkers.
+    2.  [ ] **Origin Ranging**:
+        *   [ ] *Endpoint*: `/api/task/meshtastic/ranging`
+        *   [ ] *Inputs*: Target Node ID.
+        *   [ ] *Action*: Analyzes signal strength and hop counts of incoming messages to estimate physical proximity.
+    3.  [ ] **Network Traceroute**:
+        *   [ ] *Endpoint*: `/api/task/meshtastic/trace`
+        *   [ ] *Inputs*: Target Node ID.
+        *   [ ] *Action*: Performs an active traceroute to map the hop path and locate the node within the mesh topology.
 
 ---
 
@@ -286,7 +294,7 @@ The following plugins will be implemented using the new Task Registry framework.
     - [ ] **Latency Compensation**: Measure RTT (Round Trip Time) to compensate for transmission delay/light-speed lag across different mediums.
     - [ ] **Drift Correction**: Continuous adjustment for local clock drift relative to cluster consensus.
 - [ ] **Sychronized Scanning**: Cluster leader designates frequency sweep windows and satart times, based on precisely synchronized time.
-    - **Current Rule**: Spectrum sweeps trigger only when `utc_seconds % 10 == 0`.
+    - [ ] **Current Rule**: Spectrum sweeps trigger only when `utc_seconds % 10 == 0`.
 - [ ] **TDOA/RSSI Triangulation**: Aggregating data from the cluster to locate the sources of many broadcasts seen simultaneously in a sweep.
 
 ## Phase 9: Mesh Parity (Transport Independence)
@@ -409,6 +417,7 @@ The node does not immediately start "working" on boot. It follows a strict initi
 *   **Preemption**: High-priority tasks (User overrides) push current tasks to `PAUSED` or `ABORTED` state.
 *   **Visibility**: `/api/status` returns the current queue depth and next scheduled operation.
 *   **Self-Correction**: All API errors must return a `usage` key with a valid JSON example to allow Agents to retry automatically.
+*   **Abort to Idle (WebUI)**: The WebUI abort action deploys `system/idle` via `/api/cluster/deploy` followed by `/api/cluster/start` to return the cluster to idle.
 
 ## 7. Cluster Network Topology Visualization
 The Web UI includes a "Network Map" canvas to visualize the complex relationships between nodes, especially as we introduce varied transport layers (Wi-Fi, Meshtastic, VPN).
