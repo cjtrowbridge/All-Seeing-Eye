@@ -25,9 +25,20 @@ public:
     String getTimezone();
     void applyTimezone(const String& timezone);
 
+    // Cluster Task Coordination
+    void setDesiredTask(const String& taskId, const String& paramsJson);
+    void clearDesiredTask();
+    String getDesiredTaskId();
+    String getDesiredTaskParamsJson();
+    void setStartRequested(bool requested);
+    bool isStartRequested();
+
 private:
     Kernel();
     bool _hardwareHealthy = true;
+    String _desiredTaskId;
+    String _desiredTaskParamsJson;
+    bool _startRequested = false;
     
     void setupLittleFS();
     void setupWiFi();

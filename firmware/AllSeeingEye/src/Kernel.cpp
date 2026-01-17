@@ -141,6 +141,32 @@ void Kernel::loop() {
     GeolocationService::instance().loop();
     // BleRangingManager::instance().loop(); // Moved to Plugin
 
+    // Cluster Alignment: follow desired task if peers indicate one
+    String clusterName = Config::instance().getString("cluster", "Default");
+    String desiredTaskId;
+    String desiredParamsJson;
+    bool startRequested = false;
+    unsigned long sourceProbeTime = 0;
+    if (PeerManager::instance().getClusterDesiredTask(clusterName, desiredTaskId, desiredParamsJson, startRequested, sourceProbeTime)) {
+        if (desiredTaskId.length() > 0 && (desiredTaskId != _desiredTaskId || desiredParamsJson != _desiredTaskParamsJson)) {
+            _desiredTaskId = desiredTaskId;
+            _desiredTaskParamsJson = desiredParamsJson;
+            _startRequested = false;
+
+            JsonDocument paramsDoc;
+            if (_desiredTaskParamsJson.length() > 0) {
+                deserializeJson(paramsDoc, _desiredTaskParamsJson);
+            }
+            JsonObject params = paramsDoc.as<JsonObject>();
+            PluginManager::instance().deployTask(_desiredTaskId, params);
+        }
+
+        if (startRequested && !_startRequested) {
+            _startRequested = true;
+            PluginManager::instance().startStagedTask();
+        }
+    }
+
     // WiFi handling, OTA, etc implicitly handled by events
     // We can add watchdog or status logging here
     static unsigned long lastLog = 0;
@@ -150,6 +176,33 @@ void Kernel::loop() {
         Logger::instance().info("Kernel", "Uptime: %lu ms | Heap: %d bytes | PSRAM: %d bytes", 
             millis(), ESP.getFreeHeap(), ESP.getFreePsram());
     }
+}
+
+void Kernel::setDesiredTask(const String& taskId, const String& paramsJson) {
+    _desiredTaskId = taskId;
+    _desiredTaskParamsJson = paramsJson;
+}
+
+void Kernel::clearDesiredTask() {
+    _desiredTaskId = "";
+    _desiredTaskParamsJson = "";
+    _startRequested = false;
+}
+
+String Kernel::getDesiredTaskId() {
+    return _desiredTaskId;
+}
+
+String Kernel::getDesiredTaskParamsJson() {
+    return _desiredTaskParamsJson;
+}
+
+void Kernel::setStartRequested(bool requested) {
+    _startRequested = requested;
+}
+
+bool Kernel::isStartRequested() {
+    return _startRequested;
 }
 
 void Kernel::setupLittleFS() {

@@ -30,6 +30,7 @@ The All Seeing Eye firmware uses a Plugin architecture. Tasks like "Idle" or "Sp
     };
     ```
     *   **Logging Requirement**: Emit logs for task start, key milestones, and failure paths using `Logger::instance()`.
+    *   **Synchronization Rule (Spectrum)**: For spectrum sweeps, align sampling to wall-clock boundaries and only sweep when `utc_seconds % 10 == 0`.
 
 3.  **Register with Kernel**
     *   **File**: `firmware/AllSeeingEye/src/Kernel.cpp`.
@@ -41,6 +42,10 @@ The All Seeing Eye firmware uses a Plugin architecture. Tasks like "Idle" or "Sp
            - The 3rd parameter is the **Plugin Name**. Use a human-readable string with spaces (e.g., "Spectrum Analyzer", "System").
            - This string is used by the WebUI to group tasks in the catalog headers.
         5. Map the task ID to your class in `startTask()` and `createPlugin()`.
+          6. **Inputs Schema**:
+              - Define required inputs using `TaskInputDefinition` (name, label, type, defaults, min/max/step, required).
+              - Inputs are emitted by `GET /api/task` and rendered automatically by the WebUI.
+              - Use numeric defaults for number inputs and include bounds for validation.
 
 4.  **Add API Trigger**
     *   Ensure the `TaskManager` or `Kernel` can switch to this task via the `/api/task` endpoint using the `getName()` ID.

@@ -27,7 +27,12 @@ This playbook covers how to use the Python client and API endpoints to audit the
     *   **Check**: Are all nodes reporting "Independent Exploration" (Idle)? Or are they stuck in old tasks?
     *   **Fix**: If a node reports a task that doesn't exist, use the header/API to `POST /api/task { "id": "idle" }`.
 
-4.  **Check Signal Strength (RSSI)**
+4.  **Verify Desired Task Alignment**
+    *   **Action**: Read `desired_task` and `start_requested` from `/api/status`.
+    *   **Check**: Do all peers in `/api/peers` report the same `desired_task.id`? Are they all `Ready` before start?
+    *   **Fix**: If peers are misaligned, wait for them to probe the controller or re-deploy via `POST /api/cluster/deploy`.
+
+5.  **Check Signal Strength (RSSI)**
     *   **Metric**: `rssi` field in peer objects.
     *   **Acceptable**: > -75 dBm.
     *   **Poor**: < -85 dBm.

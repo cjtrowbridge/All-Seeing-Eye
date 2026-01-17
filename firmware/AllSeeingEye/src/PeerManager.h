@@ -16,6 +16,9 @@ struct Peer {
     String cluster;
     String status;
     String task; // New field
+    String desiredTaskId;
+    String desiredTaskParamsJson;
+    bool startRequested = false;
     bool online;
     unsigned long lastSeen;
     unsigned long lastProbe; // timestamp of last successful /api/status check
@@ -40,6 +43,11 @@ public:
     // Returns the list of discovered peers as a JSON Array
     String getPeersAsJson();
     void populatePeers(JsonArray& arr); // Helper for /api/status aggregation
+    void getPeersSnapshot(std::vector<Peer>& out);
+
+    // Cluster Alignment
+    bool getClusterDesiredTask(const String& clusterName, String& taskId, String& paramsJson, bool& startRequested, unsigned long& sourceProbeTime);
+    void getClusterAlignment(const String& clusterName, const String& desiredTaskId, int& totalOnline, int& alignedOnline);
     
     // Called when an unknown host requests data
     void trackIncomingRequest(String ip);

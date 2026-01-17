@@ -14,10 +14,12 @@ public:
     // Registry
     std::vector<TaskDefinition> getTaskCatalog(); 
     bool startTask(String taskId, JsonObject params); // Returns true if task started
+    bool deployTask(String taskId, JsonObject params); // Stage task without running
+    bool startStagedTask();
 
     // Use to switch plugins from Core 0
     // NOTE: PluginManager TAKES OWNERSHIP of the pointer and will delete the OLD plugin.
-    void loadPlugin(ASEPlugin* newPlugin);
+    void loadPlugin(ASEPlugin* newPlugin, bool startRunning);
     
     // Factory Method
     ASEPlugin* createPlugin(String name);
@@ -29,11 +31,13 @@ public:
     ASEPlugin* getActivePlugin();
     String getActivePluginName();
     String getActiveTaskName(); // New helper
+    bool isTaskRunning();
 
 private:
     PluginManager();
     
     ASEPlugin* _activePlugin;
+    bool _taskRunning;
     SemaphoreHandle_t _mutex;
 };
 

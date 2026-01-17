@@ -23,8 +23,8 @@ public:
     virtual void configure(String taskId, const JsonObject& params) {}
     
     // API Interaction (Core 0 requests this, usually protected by mutex in Manager)
-    // Returns true if data was written to doc
-    virtual bool getJsonData(JsonDocument& doc) { return false; } 
+    // Returns true if data was written to report object
+    virtual bool getJsonData(JsonObject report) { return false; } 
     
     // Command Handling
     virtual void handleCommand(String command, String value) {}

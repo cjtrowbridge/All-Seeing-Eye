@@ -8,11 +8,13 @@
 #include "RingBuffer.h" // Add RingBuffer
 #include "PluginManager.h" // Add PluginManager
 #include "PeerManager.h" // Add PeerManager
+#include "Config.h" // Add Config
 #include "AsyncJson.h" 
 #include <ArduinoJson.h>
 #include "Scheduler.h" // Add scheduler
 #include "Geolocation.h"
 #include "BleRangingManager.h"
+#include <HTTPClient.h>
 
 WebServerManager& WebServerManager::instance() {
     static WebServerManager _instance;
@@ -198,6 +200,42 @@ void WebServerManager::setupRoutes() {
             obj["description"] = t.description;
             obj["plugin"] = t.pluginName;
             obj["link"] = t.endpoint;
+            if (!t.inputs.empty()) {
+                JsonArray inputs = obj.createNestedArray("inputs");
+                for (const auto& input : t.inputs) {
+                    JsonObject inputObj = inputs.add<JsonObject>();
+                    inputObj["name"] = input.name;
+                    inputObj["label"] = input.label;
+                    inputObj["type"] = input.type;
+                    if (input.required) {
+                        inputObj["required"] = true;
+                    }
+                    if (input.defaultType == INPUT_VALUE_NUMBER) {
+                        inputObj["default"] = input.defaultNumber;
+                    } else if (input.defaultType == INPUT_VALUE_BOOL) {
+                        inputObj["default"] = input.defaultBool;
+                    } else if (input.defaultType == INPUT_VALUE_TEXT) {
+                        inputObj["default"] = input.defaultText;
+                    }
+                    if (input.hasStep) {
+                        inputObj["step"] = input.step;
+                    }
+                    if (input.hasMin) {
+                        inputObj["min"] = input.min;
+                    }
+                    if (input.hasMax) {
+                        inputObj["max"] = input.max;
+                    }
+                    if (!input.options.empty()) {
+                        JsonArray options = inputObj.createNestedArray("options");
+                        for (const auto& opt : input.options) {
+                            JsonObject optObj = options.add<JsonObject>();
+                            optObj["label"] = opt.label;
+                            optObj["value"] = opt.value;
+                        }
+                    }
+                }
+            }
         }
 
         String response;
@@ -233,6 +271,135 @@ void WebServerManager::setupRoutes() {
         });
         _server.addHandler(h);
     }
+
+    // --------------------------------------------------
+    // API: Cluster Deploy / Start
+    // --------------------------------------------------
+
+    AsyncCallbackJsonWebHandler *deployHandler = new AsyncCallbackJsonWebHandler("/api/cluster/deploy", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        Logger::instance().info("API", "POST /api/cluster/deploy");
+        JsonObject obj = json.as<JsonObject>();
+        String taskId = obj["task"] | obj["id"] | "";
+
+        JsonDocument paramsDoc;
+        if (obj.containsKey("params")) {
+            paramsDoc.set(obj["params"]);
+        }
+
+        if (taskId.length() == 0) {
+            request->send(400, "application/json", "{\"error\":\"Missing task id\"}");
+            return;
+        }
+
+        String paramsJson;
+        serializeJson(paramsDoc, paramsJson);
+
+        Kernel::instance().setDesiredTask(taskId, paramsJson);
+        Kernel::instance().setStartRequested(false);
+
+        JsonObject params = paramsDoc.as<JsonObject>();
+        if (!PluginManager::instance().deployTask(taskId, params)) {
+            request->send(500, "application/json", "{\"error\":\"Failed to deploy task\"}");
+            return;
+        }
+
+        request->send(200, "application/json", "{\"status\":\"deploying\", \"taskId\":\"" + taskId + "\"}");
+    });
+    _server.addHandler(deployHandler);
+
+    _server.on("/api/cluster/start", HTTP_POST, [](AsyncWebServerRequest *request) {
+        Logger::instance().info("API", "POST /api/cluster/start");
+        if (Kernel::instance().getDesiredTaskId().length() == 0) {
+            request->send(400, "application/json", "{\"error\":\"No desired task staged\"}");
+            return;
+        }
+        Kernel::instance().setStartRequested(true);
+        PluginManager::instance().startStagedTask();
+        request->send(200, "application/json", "{\"status\":\"started\"}");
+    });
+
+    _server.on("/api/report", HTTP_GET, [](AsyncWebServerRequest *request) {
+        Logger::instance().info("API", "GET /api/report");
+        bool localOnly = request->hasParam("local") && request->getParam("local")->value() == "1";
+        static unsigned long lastReportLog = 0;
+        const unsigned long now = millis();
+        const bool logNow = (now - lastReportLog) > 5000;
+
+        JsonDocument doc;
+        JsonObject task = doc.createNestedObject("task");
+        String desiredTaskId = Kernel::instance().getDesiredTaskId();
+        String desiredParamsJson = Kernel::instance().getDesiredTaskParamsJson();
+        if (desiredTaskId.length() > 0) {
+            task["id"] = desiredTaskId;
+            if (desiredParamsJson.length() > 0) {
+                JsonDocument paramsDoc;
+                DeserializationError err = deserializeJson(paramsDoc, desiredParamsJson);
+                if (!err) {
+                    task["params"] = paramsDoc.as<JsonObject>();
+                }
+            }
+        }
+
+        JsonObject nodes = doc.createNestedObject("nodes");
+
+        // Self report
+        String selfName = Config::instance().getHostname();
+        JsonObject selfObj = nodes.createNestedObject(selfName);
+        selfObj["task"] = PluginManager::instance().getActiveTaskName();
+        ASEPlugin* active = PluginManager::instance().getActivePlugin();
+        if (active) {
+            JsonObject reportObj = selfObj.createNestedObject("report");
+            if (!active->getJsonData(reportObj)) {
+                selfObj.remove("report");
+                if (logNow) {
+                    Logger::instance().warn("Report", "No report data from plugin: %s", active->getName().c_str());
+                }
+            } else {
+                if (logNow) {
+                    Logger::instance().info("Report", "Report data collected from plugin: %s", active->getName().c_str());
+                }
+            }
+        } else {
+            if (logNow) {
+                Logger::instance().warn("Report", "No active plugin for report");
+            }
+        }
+        if (logNow) {
+            lastReportLog = now;
+        }
+
+        if (!localOnly) {
+            std::vector<Peer> peers;
+            PeerManager::instance().getPeersSnapshot(peers);
+            for (const auto& p : peers) {
+                if (!p.online || p.ip.length() == 0) continue;
+
+                HTTPClient http;
+                http.setTimeout(1500);
+                String url = "http://" + p.ip + "/api/report?local=1";
+                http.begin(url);
+                int code = http.GET();
+                if (code == 200) {
+                    String payload = http.getString();
+                    JsonDocument peerDoc;
+                    DeserializationError err = deserializeJson(peerDoc, payload);
+                    if (!err) {
+                        JsonObject peerNodes = peerDoc["nodes"];
+                        if (!peerNodes.isNull()) {
+                            for (JsonPair kv : peerNodes) {
+                                nodes[kv.key().c_str()] = kv.value();
+                            }
+                        }
+                    }
+                }
+                http.end();
+            }
+        }
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response);
+    });
 
     // --------------------------------------------------
     // API: LED Control
@@ -455,6 +622,22 @@ String WebServerManager::getCachedStatus() {
 
     doc["plugin"] = PluginManager::instance().getActivePluginName();
 
+    // Desired Task Coordination
+    String desiredTaskId = Kernel::instance().getDesiredTaskId();
+    String desiredParamsJson = Kernel::instance().getDesiredTaskParamsJson();
+    if (desiredTaskId.length() > 0) {
+        JsonObject desired = doc.createNestedObject("desired_task");
+        desired["id"] = desiredTaskId;
+        if (desiredParamsJson.length() > 0) {
+            JsonDocument paramsDoc;
+            DeserializationError err = deserializeJson(paramsDoc, desiredParamsJson);
+            if (!err) {
+                desired["params"] = paramsDoc.as<JsonObject>();
+            }
+        }
+    }
+    doc["start_requested"] = Kernel::instance().isStartRequested();
+
     // Hardware Status
     JsonObject hw = doc.createNestedObject("hardware");
     hw["cc1101"] = HAL::instance().hasRadio();
@@ -475,13 +658,19 @@ String WebServerManager::getCachedStatus() {
     if (!HAL::instance().hasRadio()) {
         statusMsg = "Radio Problem: Failed To POST";
     } else {
-        String pName = PluginManager::instance().getActivePluginName();
-        if (pName == "SystemIdle") {
+        if (desiredTaskId.length() > 0 && !Kernel::instance().isStartRequested()) {
             statusMsg = "Ready";
-        } else if (pName == "RadioTest") {
-            statusMsg = "Working: Hardware Verification";
         } else {
-             statusMsg = "Working: " + pName;
+            String pName = PluginManager::instance().getActivePluginName();
+            if (pName == "SystemIdle") {
+                statusMsg = "Ready";
+            } else if (pName == "RadioTest") {
+                statusMsg = "Working: Hardware Verification";
+            } else if (PluginManager::instance().isTaskRunning()) {
+                statusMsg = "Working: " + pName;
+            } else {
+                statusMsg = "Ready";
+            }
         }
     }
     doc["status"] = statusMsg;

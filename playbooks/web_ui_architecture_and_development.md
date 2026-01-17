@@ -27,6 +27,10 @@ The UI uses a Responsive Grid System:
     2.  Loops through the list, creating buttons.
     3.  **Grouping**: Tasks are grouped by the `plugin` field (e.g., "Spectrum Analyzer"). The UI auto-capitalizes and spaces these keys.
     4.  **Selection**: When clicked, the UI generates a form based on the `inputs` array defined in the API response.
+        - Inputs support `required`, `default`, `min`, `max`, and `step` to enforce validation and defaults.
+    5.  **Cluster Deploy**: On submit, the UI calls `POST /api/cluster/deploy`, polls `/api/status`, and shows an alignment badge (`Aligned X/Y`) before enabling Start.
+    6.  **Cluster Start**: When aligned, the UI calls `POST /api/cluster/start` and begins polling `/api/report`.
+    7.  **Synchronized Sampling**: Spectrum scans run on UTC-aligned boundaries (`utc_seconds % 10 == 0`) for cluster-wide phase alignment.
 
 ## Development Workflow
 

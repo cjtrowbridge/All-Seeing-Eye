@@ -37,6 +37,15 @@ The System Kernel uses these flags to determine which tasks can be run. These fl
 *   `gps`: (bool) True if a dedicated hardware GPS module is connected (UART).
 *   `meshtastic`: (bool) True if a LoRa radio is available for Meshtastic interoperability.
 
+# Cluster Task Coordination
+
+The cluster coordinates tasks using **status-based alignment**. Nodes do **not** push task payloads to peers. Instead, each node advertises its desired task in `/api/status`, and peers align themselves by observing the network.
+
+*   **Desired Task**: `/api/status.desired_task` contains the staged task payload.
+*   **Start Gate**: `/api/status.start_requested` signals when execution should begin.
+*   **Alignment Rule**: The WebUI enables the Start button when `/api/peers` shows that all online peers have aligned to the desired task.
+*   **Memory**: Results are ephemeral and cleared when the task changes.
+
 ---
 
 # Roadmap
@@ -75,7 +84,7 @@ The WebUI (`index.html`) uses a responsive grid layout that adapts between mobil
 2.  **Controls (Center)**:
     -   **Task List**: The primary catalog of available operations (Plugins).
         -   Grouped by **Plugin Name** (e.g., "System", "Spectrum Analyzer").
-        -   Tasks are defined in `PluginManager.cpp` and served via `/api/task`.
+        -   Tasks are defined in `PluginManager.cpp` and served via `/api/task`, including input schemas.
     -   **Device Config**: Settings for Hostname, Identity, Timezone, and LED.
 
 3.  **Workspace (Right)**:
@@ -148,9 +157,8 @@ The system has pivoted from always-on background services to an On-Demand Task A
     - [x] `PluginManager`: Handles loading/unloading and exclusive resource locking.
     - [x] **Discovery API (`GET /api/task`)**: Returns catalog of available tasks.
         -   Grouped by Plugin Name.
-        -   Includes Task ID, Description, and Link.
+        -   Includes Task ID, Description, Link, and `inputs` schema.
 - [x] **Task Execution API**:
-    - [ ] `GET /api/task/{taskId}`: Returns schema/form definition for the task (inputs required).
     - [x] `POST /api/task/{taskId}`: Submits parameters and starts execution.
         -   **UX Flow**: Response replaces the UI "Working" container with results table/heading.
 - [x] **Core Plugins To Implement**:
@@ -163,7 +171,7 @@ The Web Interface must dynamically render available tasks and handle the executi
     - [ ] Render groupings by Plugin Name (e.g., `<h3>BLE Ranging</h3>`).
     - [ ] Render buttons for each task under the appropriate heading.
 - [ ] **Dynamic Form Generation (Task Panel)**:
-    - [ ] **Action**: Clicking a task button triggers `GET /api/task/{taskId}` to fetch input schema.
+    - [ ] **Action**: Clicking a task button reads the `inputs` schema from the cached `/api/task` catalog.
     - [ ] **Render**: Clear the Task View (Right/Center Column) and generate an HTML Form based on the schema.
     - [ ] **Validation**: Ensure required fields are marked and validated before submission.
 - [ ] **Execution State**:
@@ -237,6 +245,7 @@ The following plugins will be implemented using the new Task Registry framework.
         *   *Endpoint*: `/api/task/spectrum/scan`
         *   *Inputs*: Start Freq, Stop Freq, Step.
         *   *Action*: Standard sweep, returns CSV/JSON array of power levels.
+        *   *Sync Rule*: Sweep only when `utc_seconds % 10 == 0` so clusters sample in lockstep.
     2.  **Peak Hold Sweep**:
         *   *Endpoint*: `/api/task/spectrum/peak`
         *   *Inputs*: Duration.
@@ -277,6 +286,7 @@ The following plugins will be implemented using the new Task Registry framework.
     - [ ] **Latency Compensation**: Measure RTT (Round Trip Time) to compensate for transmission delay/light-speed lag across different mediums.
     - [ ] **Drift Correction**: Continuous adjustment for local clock drift relative to cluster consensus.
 - [ ] **Sychronized Scanning**: Cluster leader designates frequency sweep windows and satart times, based on precisely synchronized time.
+    - **Current Rule**: Spectrum sweeps trigger only when `utc_seconds % 10 == 0`.
 - [ ] **TDOA/RSSI Triangulation**: Aggregating data from the cluster to locate the sources of many broadcasts seen simultaneously in a sweep.
 
 ## Phase 9: Mesh Parity (Transport Independence)

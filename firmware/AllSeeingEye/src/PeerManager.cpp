@@ -166,7 +166,20 @@ bool PeerManager::probePeer(String ip) {
              String pCluster = doc["clusterName"] | "Default"; 
              String pStatus = doc["status"] | "Unknown";
              String pTask = doc["task"] | "Unknown Task";
+             String pDesiredTaskId = "";
+             String pDesiredTaskParams = "";
+             bool pStartRequested = doc["start_requested"] | false;
              String pDesc = doc["description"] | "";
+
+             if (doc.containsKey("desired_task")) {
+                 JsonObject desired = doc["desired_task"].as<JsonObject>();
+                 pDesiredTaskId = desired["id"] | "";
+                 if (desired.containsKey("params")) {
+                     String paramsJson;
+                     serializeJson(desired["params"], paramsJson);
+                     pDesiredTaskParams = paramsJson;
+                 }
+             }
 
              // Check if exists
              bool found = false;
@@ -177,6 +190,9 @@ bool PeerManager::probePeer(String ip) {
                      peer.cluster = pCluster;
                      peer.status = pStatus;
                      peer.task = pTask;
+                     peer.desiredTaskId = pDesiredTaskId;
+                     peer.desiredTaskParamsJson = pDesiredTaskParams;
+                     peer.startRequested = pStartRequested;
                      peer.online = true;
                      peer.lastSeen = millis();
                      peer.lastProbe = millis();
@@ -193,6 +209,9 @@ bool PeerManager::probePeer(String ip) {
                  p.cluster = pCluster;
                  p.status = pStatus;
                  p.task = pTask;
+                 p.desiredTaskId = pDesiredTaskId;
+                 p.desiredTaskParamsJson = pDesiredTaskParams;
+                 p.startRequested = pStartRequested;
                  p.online = true;
                  p.lastSeen = millis();
                  p.lastProbe = millis();
@@ -303,6 +322,10 @@ String PeerManager::getPeersAsJson() {
     return output;
 }
 
+void PeerManager::getPeersSnapshot(std::vector<Peer>& out) {
+    out = _peers;
+}
+
 void PeerManager::populatePeers(JsonArray& arr) {
     for (const auto &p : _peers) {
         JsonObject obj = arr.add<JsonObject>();
@@ -312,6 +335,18 @@ void PeerManager::populatePeers(JsonArray& arr) {
         obj["cluster"] = p.cluster;
         obj["status"] = p.status;
         obj["task"] = p.task;
+        if (p.desiredTaskId.length() > 0) {
+            JsonObject desired = obj.createNestedObject("desired_task");
+            desired["id"] = p.desiredTaskId;
+            if (p.desiredTaskParamsJson.length() > 0) {
+                JsonDocument paramsDoc;
+                DeserializationError err = deserializeJson(paramsDoc, p.desiredTaskParamsJson);
+                if (!err) {
+                    desired["params"] = paramsDoc.as<JsonObject>();
+                }
+            }
+        }
+        obj["start_requested"] = p.startRequested;
         obj["lastProbe"] = p.lastProbe;
         
         // Mark as offline if not seen in 2 minutes (scans happen every 30s)
@@ -324,6 +359,46 @@ void PeerManager::populatePeers(JsonArray& arr) {
         
         if (p.bleDistance > 0) obj["ble_dist_m"] = p.bleDistance;
         else obj["ble_dist_m"] = nullptr;
+    }
+}
+
+bool PeerManager::getClusterDesiredTask(const String& clusterName, String& taskId, String& paramsJson, bool& startRequested, unsigned long& sourceProbeTime) {
+    String selectedTaskId = "";
+    String selectedParams = "";
+    bool selectedStart = false;
+    unsigned long newestProbe = 0;
+
+    for (const auto& p : _peers) {
+        if (!p.online) continue;
+        if (p.cluster != clusterName) continue;
+        if (p.desiredTaskId.length() == 0) continue;
+        if (p.lastProbe > newestProbe) {
+            newestProbe = p.lastProbe;
+            selectedTaskId = p.desiredTaskId;
+            selectedParams = p.desiredTaskParamsJson;
+            selectedStart = p.startRequested;
+        }
+    }
+
+    if (selectedTaskId.length() == 0) return false;
+
+    taskId = selectedTaskId;
+    paramsJson = selectedParams;
+    startRequested = selectedStart;
+    sourceProbeTime = newestProbe;
+    return true;
+}
+
+void PeerManager::getClusterAlignment(const String& clusterName, const String& desiredTaskId, int& totalOnline, int& alignedOnline) {
+    totalOnline = 0;
+    alignedOnline = 0;
+    for (const auto& p : _peers) {
+        if (!p.online) continue;
+        if (p.cluster != clusterName) continue;
+        totalOnline++;
+        if (p.desiredTaskId == desiredTaskId) {
+            alignedOnline++;
+        }
     }
 }
 

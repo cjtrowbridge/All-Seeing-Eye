@@ -86,6 +86,11 @@ The following routes are registered in `firmware/AllSeeingEye/src/WebServer.cpp`
 | `/api/led/on` | POST | Enable LED output |
 | `/api/led/off` | POST | Disable LED output |
 | `/api/queue` | GET | Task scheduler state |
+| `/api/task` | GET | Task catalog with input schemas |
+| `/api/task/{taskId}` | POST | Execute a task with parameters |
+| `/api/cluster/deploy` | POST | Stage a task payload for the cluster |
+| `/api/cluster/start` | POST | Start the staged task cluster-wide |
+| `/api/report` | GET | Aggregated task report across cluster |
 | `/api/reboot` | POST | Reboot the device |
 | `/api/ranging/ble` | GET | Latest BLE ranging scan results |
 
@@ -97,24 +102,96 @@ Returned in `/api/peers` and the `peers` array of `/api/status`.
 ```json
 {
   "hostname": "allseeingeye-4ae214",
-  "ip": "192.168.1.105",
-  "status": "Ready",
-  "hardware": {
-    "cc1101": true,
-    "gps": false,
-    "meshtastic": false
-  }
-}
-```  "status": "Idle",
-  "online": true,
-  "lastProbe": 1705351234,
-  "ble_rssi": [-85, -82, -80, -99, -84],
-  "ble_dist_m": 3.42
+    "description": "lab node",
+    "ip": "192.168.1.105",
+    "cluster": "Default",
+    "status": "Ready",
+    "task": "System Idle",
+    "desired_task": {
+        "id": "spectrum/scan",
+        "params": { "start": 902.0, "stop": 928.0 }
+    },
+    "start_requested": false,
+    "online": true,
+    "lastProbe": 1705351234,
+    "ble_rssi": [-85, -82, -80, -99, -84],
+    "ble_dist_m": 3.42
 }
 ```
 
 *   `ble_rssi`: Array of last 5 Bluetooth RSSI measurements. `-99` indicates the peer was not seen during that scan window.
 *   `ble_dist_m`: Estimated distance in meters based on Path Loss model. `null` if no recent data.
+
+### Task Catalog Entry
+Returned by `GET /api/task`.
+
+```json
+{
+    "id": "spectrum/scan",
+    "name": "Band Scan",
+    "description": "Standard sweep, returns power levels.",
+    "plugin": "Spectrum Analyzer",
+    "link": "/api/task/spectrum/scan",
+    "inputs": [
+        {
+            "name": "start",
+            "label": "Start Frequency (MHz)",
+            "type": "number",
+            "default": 905,
+            "step": 0.1,
+            "required": true
+        },
+        {
+            "name": "stop",
+            "label": "Stop Frequency (MHz)",
+            "type": "number",
+            "default": 928,
+            "step": 0.1,
+            "required": true
+        },
+        {
+            "name": "bandwidth",
+            "label": "Channel Bandwidth (kHz)",
+            "type": "number",
+            "default": 500,
+            "step": 1,
+            "required": true
+        },
+        {
+            "name": "power",
+            "label": "Broadcast Power (dBm)",
+            "type": "number",
+            "default": -1,
+            "min": -30,
+            "max": 11,
+            "step": 1,
+            "required": true
+        }
+    ]
+}
+```
+
+### Spectrum Report Payload
+Returned under `/api/report.nodes[*].report` when `spectrum/scan` is active.
+
+```json
+{
+    "task_id": "spectrum/scan",
+    "start_mhz": 905,
+    "stop_mhz": 928,
+    "bandwidth_khz": 500,
+    "power_dbm": -1,
+    "step_mhz": 0.5,
+    "points_count": 255,
+    "points_max": 255,
+    "points": [
+        { "freq_mhz": 905.0, "rssi_dbm": -78.2 },
+        { "freq_mhz": 905.5, "rssi_dbm": -79.1 }
+    ],
+    "iterations": 12,
+    "last_loop_ms": 123456
+}
+```
 
 ## Development Roadmap
 
@@ -207,6 +284,11 @@ All API endpoints must return helpful error messages for 400-series client error
       "clusterName": "Alpha",
       "status": "Working: Scanner",
       "task": "Broadband Sweep",
+      "desired_task": {
+          "id": "spectrum/scan",
+          "params": { "start": 902.0, "stop": 928.0 }
+      },
+      "start_requested": false,
       "geolocation": {
           "state": "init",
           "fix": "none",
@@ -248,6 +330,42 @@ All API endpoints must return helpful error messages for 400-series client error
       "logs": [ ... ]
     }
     ```
+
+### 2. Cluster Deploy (Status-Driven)
+*   **Endpoint:** `/api/cluster/deploy`
+*   **Method:** `POST`
+*   **Description:** Stage a task for the cluster by publishing it to local `/api/status` as `desired_task`.
+*   **Payload Example**:
+        ```json
+        {
+            "task": "spectrum/scan",
+            "params": { "start": 902.0, "stop": 928.0 }
+        }
+        ```
+
+### 3. Cluster Start
+*   **Endpoint:** `/api/cluster/start`
+*   **Method:** `POST`
+*   **Description:** Sets `start_requested=true` in `/api/status` so peers begin execution.
+*   **Payload Example**:
+        ```json
+        {}
+        ```
+
+### 4. Cluster Report
+*   **Endpoint:** `/api/report`
+*   **Method:** `GET`
+*   **Description:** Aggregated report containing the active task payload and per-node results.
+*   **Response Example**:
+        ```json
+        {
+            "task": { "id": "spectrum/scan", "params": { "start": 902.0, "stop": 928.0 } },
+            "nodes": {
+                "allseeingeye-a1": { "task": "Spectrum Scan", "report": { "bins": [ ... ] } },
+                "allseeingeye-b2": { "task": "Spectrum Scan", "report": { "bins": [ ... ] } }
+            }
+        }
+        ```
 
 ### 10. BLE Ranging (Planned)
 *   **Endpoint:** `/api/ranging/ble`

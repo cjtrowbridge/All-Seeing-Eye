@@ -16,11 +16,11 @@ PluginManager& PluginManager::instance() {
     return _instance;
 }
 
-PluginManager::PluginManager() : _activePlugin(nullptr) {
+PluginManager::PluginManager() : _activePlugin(nullptr), _taskRunning(false) {
     _mutex = xSemaphoreCreateMutex();
 }
 
-void PluginManager::loadPlugin(ASEPlugin* newPlugin) {
+void PluginManager::loadPlugin(ASEPlugin* newPlugin, bool startRunning) {
     if (newPlugin == nullptr) return;
 
     // Block until we can safely switch (Core 1 not in middle of loop)
@@ -36,6 +36,7 @@ void PluginManager::loadPlugin(ASEPlugin* newPlugin) {
     _activePlugin = newPlugin;
     Logger::instance().info("PluginMgr", "Starting plugin: %s...", _activePlugin->getName().c_str());
     _activePlugin->setup();
+    _taskRunning = startRunning;
     
     xSemaphoreGive(_mutex);
 }
@@ -92,13 +93,58 @@ std::vector<TaskDefinition> PluginManager::getTaskCatalog() {
     });
 
     // 5. Spectrum Analysis
-    catalog.push_back({
-       "spectrum/scan",
-       "Band Scan",
-       "Spectrum Analyzer",
-       "Standard sweep, returns power levels.",
-       "/api/task/spectrum/scan"
-    });
+     TaskInputDefinition spectrumStart;
+     spectrumStart.name = "start";
+     spectrumStart.label = "Start Frequency (MHz)";
+     spectrumStart.type = "number";
+     spectrumStart.required = true;
+     spectrumStart.defaultType = INPUT_VALUE_NUMBER;
+     spectrumStart.defaultNumber = 905.0f;
+     spectrumStart.hasStep = true;
+     spectrumStart.step = 0.1f;
+
+     TaskInputDefinition spectrumStop;
+     spectrumStop.name = "stop";
+     spectrumStop.label = "Stop Frequency (MHz)";
+     spectrumStop.type = "number";
+     spectrumStop.required = true;
+     spectrumStop.defaultType = INPUT_VALUE_NUMBER;
+     spectrumStop.defaultNumber = 928.0f;
+     spectrumStop.hasStep = true;
+     spectrumStop.step = 0.1f;
+
+     TaskInputDefinition spectrumBandwidth;
+     spectrumBandwidth.name = "bandwidth";
+     spectrumBandwidth.label = "Channel Bandwidth (kHz)";
+     spectrumBandwidth.type = "number";
+     spectrumBandwidth.required = true;
+     spectrumBandwidth.defaultType = INPUT_VALUE_NUMBER;
+     spectrumBandwidth.defaultNumber = 500.0f;
+     spectrumBandwidth.hasStep = true;
+     spectrumBandwidth.step = 1.0f;
+
+     TaskInputDefinition spectrumPower;
+     spectrumPower.name = "power";
+     spectrumPower.label = "Broadcast Power (dBm)";
+     spectrumPower.type = "number";
+     spectrumPower.required = true;
+     spectrumPower.defaultType = INPUT_VALUE_NUMBER;
+     spectrumPower.defaultNumber = -1.0f;
+     spectrumPower.hasStep = true;
+     spectrumPower.step = 1.0f;
+     spectrumPower.hasMin = true;
+     spectrumPower.min = -30.0f;
+     spectrumPower.hasMax = true;
+     spectrumPower.max = 11.0f;
+
+     catalog.push_back({
+         "spectrum/scan",
+         "Band Scan",
+         "Spectrum Analyzer",
+         "Standard sweep, returns power levels.",
+         "/api/task/spectrum/scan",
+         { spectrumStart, spectrumStop, spectrumBandwidth, spectrumPower }
+     });
 
     // 6. Meshtastic
     catalog.push_back({
@@ -152,8 +198,45 @@ bool PluginManager::startTask(String taskId, JsonObject params) {
     plugin->configure(taskId, params);
 
     // Load it (Swaps active plugin safely)
-    loadPlugin(plugin);
+    loadPlugin(plugin, true);
     
+    return true;
+}
+
+bool PluginManager::deployTask(String taskId, JsonObject params) {
+    Logger::instance().info("PluginMgr", "Deploying Task: %s", taskId.c_str());
+    String pluginName = "";
+
+    if (taskId.startsWith("ble-ranging")) {
+        pluginName = "BleRanging";
+    } else if (taskId.startsWith("system/idle")) {
+        pluginName = "SystemIdle";
+    } else if (taskId.startsWith("geolocation")) {
+        pluginName = "Geolocation";
+    } else if (taskId.startsWith("rf-diag")) {
+        pluginName = "RfDiag";
+    } else if (taskId.startsWith("spectrum")) {
+        pluginName = "Spectrum";
+    } else if (taskId.startsWith("meshtastic")) {
+        pluginName = "Meshtastic";
+    }
+
+    if (pluginName == "") {
+        Logger::instance().error("PluginMgr", "No plugin mapping for task: %s", taskId.c_str());
+        return false;
+    }
+
+    ASEPlugin* plugin = createPlugin(pluginName);
+    if (!plugin) return false;
+
+    plugin->configure(taskId, params);
+    loadPlugin(plugin, false);
+    return true;
+}
+
+bool PluginManager::startStagedTask() {
+    if (!_activePlugin) return false;
+    _taskRunning = true;
     return true;
 }
 
@@ -181,7 +264,7 @@ void PluginManager::runLoop() {
     // If we fail to take it (unlikely with portMAX_DELAY), we skip.
     // Using a timeout allows the watchdog to notice if we deadlock.
     if (xSemaphoreTake(_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        if (_activePlugin) {
+        if (_activePlugin && _taskRunning) {
             _activePlugin->loop();
             // Optional: nice to others
             delay(1);
@@ -216,4 +299,8 @@ String PluginManager::getActiveTaskName() {
         xSemaphoreGive(_mutex);
     }
     return t;
+}
+
+bool PluginManager::isTaskRunning() {
+    return _taskRunning;
 }

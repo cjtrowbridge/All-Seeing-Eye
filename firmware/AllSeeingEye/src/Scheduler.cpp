@@ -72,7 +72,7 @@ void Scheduler::switchToTask(RadioTask t) {
     // Pass params? (Future: p->setParams(t.paramsJson))
     
     // Load into Manager
-    PluginManager::instance().loadPlugin(p);
+    PluginManager::instance().loadPlugin(p, true);
 }
 
 void Scheduler::startIdle() {

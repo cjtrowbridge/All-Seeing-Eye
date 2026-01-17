@@ -2,6 +2,40 @@
 #define TASKTYPES_H
 
 #include <Arduino.h>
+#include <vector>
+
+enum TaskInputValueType {
+    INPUT_VALUE_NONE,
+    INPUT_VALUE_NUMBER,
+    INPUT_VALUE_BOOL,
+    INPUT_VALUE_TEXT
+};
+
+struct TaskInputOption {
+    String label;
+    String value;
+};
+
+struct TaskInputDefinition {
+    String name;
+    String label;
+    String type; // number, select, boolean, text
+    bool required = false;
+
+    TaskInputValueType defaultType = INPUT_VALUE_NONE;
+    float defaultNumber = 0.0f;
+    bool defaultBool = false;
+    String defaultText = "";
+
+    bool hasStep = false;
+    float step = 0.0f;
+    bool hasMin = false;
+    float min = 0.0f;
+    bool hasMax = false;
+    float max = 0.0f;
+
+    std::vector<TaskInputOption> options;
+};
 
 enum TaskType {
     TASK_CRITICAL,    // Startup/HW Check
@@ -16,6 +50,7 @@ struct TaskDefinition {
     String pluginName;     // e.g., "BleRanging"
     String description;    // e.g., "Lists all nearby BLE MACs and payloads."
     String endpoint;       // e.g., "/api/task/ble-ranging/survey"
+    std::vector<TaskInputDefinition> inputs;
 };
 
 struct RadioTask {

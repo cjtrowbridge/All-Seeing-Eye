@@ -44,6 +44,18 @@
             text-transform: uppercase;
         }
         .status-badge.active { color: var(--bg-color); background: var(--success-color); font-weight: bold; }
+        .alignment-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            background: #222;
+            color: #888;
+            border: 1px solid #333;
+            margin-bottom: 8px;
+        }
+        .alignment-badge.ready { background: #0f2f2a; color: #03dac6; border-color: #03dac6; }
         
         main {
             display: grid;
@@ -267,6 +279,7 @@
         }
         .task-btn:hover { background: #252525; color: #fff; border-left: 3px solid var(--accent-color); }
         .task-btn.selected { background: #2a2a2a; border-left: 3px solid var(--success-color); color:white; }
+        .task-btn.disabled { opacity: 0.4; pointer-events: none; }
         .task-btn .name { font-weight: bold; display: block; color: var(--accent-color); }
         .task-btn .desc { display: block; font-size: 0.8rem; color: #888; margin-top: 4px; }
 
@@ -304,6 +317,16 @@
             height: 100%; color: #444; text-align: center;
         }
         .empty-icon { font-size: 3rem; margin-bottom: 15px; opacity: 0.2; }
+
+        /* Report View */
+        #report-view {
+            padding: 20px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #ccc;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
@@ -428,8 +451,10 @@
                 <!-- State 3: Execution Running -->
                 <div id="work-running" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100%;">
                     <div class="spinner"></div>
-                    <h2 style="color:var(--accent-color); margin-bottom:5px;">Task Active</h2>
-                    <p id="execution-status-text" style="color:#aaa;">Initiating logic chain...</p>
+                    <h2 style="color:var(--accent-color); margin-bottom:5px;">Deploying Task</h2>
+                    <div id="alignment-badge" class="alignment-badge">Awaiting Alignment</div>
+                    <p id="execution-status-text" style="color:#aaa;">Deploying task to cluster...</p>
+                    <p id="deployment-status" style="color:#666; font-size:0.85rem;">Waiting for peers...</p>
                     
                     <div id="execution-timer" style="font-family:monospace; font-size:2rem; margin:20px 0; color:#fff;">00:00:00</div>
                     
@@ -438,12 +463,13 @@
                         <div style="display:flex; justify-content:space-between;"><span>Plugin:</span> <span id="q-plugin-monitor" style="color:white">--</span></div>
                     </div>
 
-                    <button class="btn-cancel" onclick="abortTask()" style="margin-top:30px; border-color:var(--danger-color); color:var(--danger-color);">ABORT TASK</button>
+                    <button id="btn-start-task" class="cta-button" onclick="startClusterTask()" style="display:none; margin-top:20px;">START TASK</button>
+                    <button class="btn-cancel" onclick="abortTask()" style="margin-top:20px; border-color:var(--danger-color); color:var(--danger-color);">ABORT TASK</button>
                 </div>
 
                 <!-- State 4: Results -->
                 <div id="work-results" style="display:none;">
-                    <!-- Placeholder for task completion -->
+                    <div id="report-view">Waiting for task reports...</div>
                 </div>
 
             </div>
@@ -1169,6 +1195,9 @@
         let activeTaskId = null;
         let taskTimerInt = null;
         let taskStartTime = 0;
+        let deployTaskId = null;
+        let deployTimerInt = null;
+        let reportPollInt = null;
 
         async function loadTaskCatalog() {
             const container = document.getElementById('task-catalog-container');
@@ -1239,7 +1268,8 @@
                     html += `<div class="form-group">`;
                     html += `<label class="form-label">${input.label || input.name}</label>`;
                     if (input.type === 'select' && input.options) {
-                        html += `<select class="form-select" name="${input.name}">`;
+                        const requiredAttr = input.required ? 'required' : '';
+                        html += `<select class="form-select" name="${input.name}" ${requiredAttr}>`;
                         input.options.forEach(opt => {
                             const val = (typeof opt === 'object') ? opt.value : opt;
                             const lbl = (typeof opt === 'object') ? opt.label : opt;
@@ -1247,15 +1277,23 @@
                         });
                         html += `</select>`;
                     } else if (input.type === 'number') {
+                         const requiredAttr = input.required ? 'required' : '';
+                         const minAttr = (input.min !== undefined && input.min !== null) ? `min="${input.min}"` : '';
+                         const maxAttr = (input.max !== undefined && input.max !== null) ? `max="${input.max}"` : '';
+                         const stepAttr = (input.step !== undefined && input.step !== null) ? `step="${input.step}"` : 'step="any"';
+                         const defaultVal = (input.default !== undefined && input.default !== null) ? input.default : '';
                          html += `<input class="form-input" type="number" name="${input.name}" 
-                                        value="${input.default || ''}" step="${input.step || 'any'}">`;
+                                        value="${defaultVal}" ${stepAttr} ${minAttr} ${maxAttr} ${requiredAttr}>`;
                     } else if (input.type === 'boolean') {
+                         const requiredAttr = input.required ? 'required' : '';
                          html += `<div style="display:flex; align-items:center;">`;
-                         html += `<input type="checkbox" name="${input.name}" ${input.default ? 'checked':''} 
+                         html += `<input type="checkbox" name="${input.name}" ${input.default ? 'checked':''} ${requiredAttr}
                                         style="margin-right:10px;">`;
                          html += `<label class="form-check-label">${input.label || input.name}</label></div>`;
                     } else {
-                        html += `<input class="form-input" type="text" name="${input.name}" value="${input.default || ''}">`;
+                        const requiredAttr = input.required ? 'required' : '';
+                        const defaultVal = (input.default !== undefined && input.default !== null) ? input.default : '';
+                        html += `<input class="form-input" type="text" name="${input.name}" value="${defaultVal}" ${requiredAttr}>`;
                     }
                     html += `</div>`;
                 });
@@ -1271,10 +1309,20 @@
 
         function resetWorkspace() {
             activeTaskId = null;
+            deployTaskId = null;
+            if (deployTimerInt) clearInterval(deployTimerInt);
+            if (reportPollInt) clearInterval(reportPollInt);
+            const alignmentBadge = document.getElementById('alignment-badge');
+            if (alignmentBadge) {
+                alignmentBadge.classList.remove('ready');
+                alignmentBadge.textContent = 'Awaiting Alignment';
+            }
             document.getElementById('work-form').style.display = 'none';
             document.getElementById('work-running').style.display = 'none';
             document.getElementById('work-intro').style.display = 'flex';
+            document.getElementById('work-results').style.display = 'none';
             document.querySelectorAll('.task-btn').forEach(b => b.classList.remove('selected'));
+            setTaskListLocked(false);
         }
         // Alias
         const resetTaskView = resetWorkspace;
@@ -1283,7 +1331,7 @@
             if (!activeTaskId) return;
 
             const form = document.getElementById('task-form-container');
-            const payload = { plugin: activeTaskId, params: {} };
+            const payload = { task: activeTaskId, params: {} };
             
             form.querySelectorAll('select').forEach(el => payload.params[el.name] = el.value);
             form.querySelectorAll('input').forEach(el => {
@@ -1295,23 +1343,110 @@
             // UI Transition
             document.getElementById('work-form').style.display = 'none';
             document.getElementById('work-running').style.display = 'flex';
-            document.getElementById('execution-status-text').textContent = "Transmitting Command...";
+            document.getElementById('work-results').style.display = 'none';
+            document.getElementById('execution-status-text').textContent = "Deploying task to cluster...";
+            document.getElementById('deployment-status').textContent = "Waiting for peers...";
+            const alignmentBadge = document.getElementById('alignment-badge');
+            if (alignmentBadge) {
+                alignmentBadge.classList.remove('ready');
+                alignmentBadge.textContent = 'Awaiting Alignment';
+            }
+            document.getElementById('btn-start-task').style.display = 'none';
+            setTaskListLocked(true);
 
             try {
-                const res = await fetch('/api/task', {
+                const res = await fetch('/api/cluster/deploy', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error("Launch failed");
-                
-                document.getElementById('execution-status-text').textContent = "Task Active";
-                startExecutionTimer();
-                fetchStatus();
+                if (!res.ok) throw new Error("Deploy failed");
+                deployTaskId = activeTaskId;
+                pollClusterAlignment();
             } catch(e) {
                 alert("Error: " + e.message);
+                setTaskListLocked(false);
                 resetWorkspace();
             }
+        }
+
+        function setTaskListLocked(locked) {
+            document.querySelectorAll('.task-btn').forEach(btn => {
+                btn.classList.toggle('disabled', locked);
+            });
+        }
+
+        async function pollClusterAlignment() {
+            if (deployTimerInt) clearInterval(deployTimerInt);
+            deployTimerInt = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    const clusterName = data.clusterName || "Default";
+                    const peers = Array.isArray(data.peers) ? data.peers : [];
+                    const desiredId = data.desired_task ? data.desired_task.id : null;
+
+                    const onlinePeers = peers.filter(p => p.online && p.cluster === clusterName);
+                    const totalOnline = onlinePeers.length + 1; // include self
+                    let aligned = 0;
+
+                    if (desiredId === deployTaskId) aligned += 1;
+                    onlinePeers.forEach(p => {
+                        if (p.desired_task && p.desired_task.id === deployTaskId) aligned += 1;
+                    });
+
+                    const statusText = `${aligned}/${totalOnline} nodes aligned`;
+                    document.getElementById('deployment-status').textContent = statusText;
+                    const alignmentBadge = document.getElementById('alignment-badge');
+                    if (alignmentBadge) {
+                        alignmentBadge.textContent = `Aligned ${aligned}/${totalOnline}`;
+                        alignmentBadge.classList.toggle('ready', aligned === totalOnline && totalOnline > 0);
+                    }
+
+                    if (aligned === totalOnline && totalOnline > 0) {
+                        document.getElementById('execution-status-text').textContent = "Cluster aligned. Ready to start.";
+                        document.getElementById('btn-start-task').style.display = 'block';
+                        clearInterval(deployTimerInt);
+                    }
+                } catch (e) {
+                    document.getElementById('deployment-status').textContent = "Alignment check failed.";
+                    const alignmentBadge = document.getElementById('alignment-badge');
+                    if (alignmentBadge) {
+                        alignmentBadge.classList.remove('ready');
+                        alignmentBadge.textContent = 'Alignment Error';
+                    }
+                }
+            }, 1500);
+        }
+
+        async function startClusterTask() {
+            try {
+                const res = await fetch('/api/cluster/start', { method: 'POST' });
+                if (!res.ok) throw new Error("Start failed");
+                document.getElementById('btn-start-task').style.display = 'none';
+                document.getElementById('execution-status-text').textContent = "Task Active";
+                startExecutionTimer();
+                document.getElementById('work-results').style.display = 'block';
+                pollReport();
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+        async function pollReport() {
+            if (reportPollInt) clearInterval(reportPollInt);
+            reportPollInt = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/report');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const view = document.getElementById('report-view');
+                    view.textContent = JSON.stringify(data, null, 2);
+                } catch (e) {
+                    const view = document.getElementById('report-view');
+                    if (view) view.textContent = "Failed to load report.";
+                }
+            }, 2000);
         }
         
         async function abortTask() {

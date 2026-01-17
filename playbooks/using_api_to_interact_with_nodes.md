@@ -85,6 +85,21 @@ response = client.post("/api/config", {
 print(response)
 ```
 
+**Cluster Task Deploy**:
+```bash
+python api/cli.py post /api/cluster/deploy '{"task":"spectrum/scan", "params": {"start": 902.0, "stop": 928.0}}'
+```
+
+**Cluster Task Start**:
+```bash
+python api/cli.py post /api/cluster/start '{}'
+```
+
+**Cluster Report**:
+```bash
+python api/cli.py get /api/report
+```
+
 **LED Set (GET with query params)**:
 ```python
 from client import EyeClient
